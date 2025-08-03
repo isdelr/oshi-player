@@ -9,7 +9,7 @@ import {
 } from './ui/sidebar'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion'
 import { Button } from './ui/button'
-import { Album, Clock, Heart, Library, ListMusic, Mic2, Music, Plus, User } from 'lucide-react'
+import { Clock, Heart, Library, ListMusic, Music, Plus } from 'lucide-react'
 import { ScrollArea } from './ui/scroll-area'
 import { JSX, useEffect } from 'react'
 import { Link, useMatchRoute } from '@tanstack/react-router'
@@ -17,7 +17,7 @@ import { useLibraryStore } from '@renderer/stores/useLibraryStore'
 
 export function LeftSidebar(): JSX.Element {
   const matchRoute = useMatchRoute()
-  const { albums, artists, actions } = useLibraryStore()
+  const { actions } = useLibraryStore()
 
   useEffect(() => {
     actions.loadLibrary()

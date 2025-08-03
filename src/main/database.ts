@@ -48,10 +48,7 @@ export class DatabaseService {
       // In development, use the compiled JS file from the out directory
       workerPath = path.join(__dirname, 'database.worker.js')
     } else {
-      // In production, the app is packed in an ASAR file. Workers cannot run from
-      // inside an ASAR, so electron-vite unpacks it. We need to find its new path.
-      // We do this by replacing 'app.asar' in the path with 'app.asar.unpacked'.
-      const unpackedDirname = __dirname.replace('app.asar', 'app.asar.unpacked')
+      const unpackedDirname = __dirname.replace('app.asar', 'app.asar')
       workerPath = path.join(unpackedDirname, 'database.worker.js')
     }
 

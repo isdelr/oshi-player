@@ -1,5 +1,5 @@
 // src/renderer/src/components/TitleBar.tsx
-import { Maximize, Minimize2, X, Square } from 'lucide-react'
+import { Minimize2, X, Square } from 'lucide-react'
 import { JSX, ReactNode, useState, useEffect } from 'react'
 
 interface TitleBarProps {

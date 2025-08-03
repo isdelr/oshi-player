@@ -48,19 +48,6 @@ export interface IElectronAPI {
   getAlbums: () => Promise<Album[]>
   getArtists: () => Promise<Artist[]>
 
-  // --- REVISED Music Player API ---
-
-  // Commands from Renderer -> Main
-  playSong: (songIndex?: number) => void
-  playNextSong: () => void
-  playPreviousSong: () => void
-  getCurrentSongDetails: () => Promise<any>
-  requestPlayNextSong: () => void
-  updatePlaybackState: (state: { isPlaying: boolean; currentTime: number }) => void
-
-  // Listeners for events from Main -> Renderer
-  onSongLoading: (callback: (isLoading: boolean) => void) => () => void
-  onPlayFile: (callback: (payload: { details: any; filePath: string }) => void) => () => void
 }
 
 declare global {

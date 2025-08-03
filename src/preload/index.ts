@@ -1,6 +1,7 @@
 // src/preload/index.ts
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+import { Song } from './index.d'
 
 // Custom APIs for renderer
 const api = {
@@ -31,30 +32,7 @@ const api = {
   // Library Data
   getSongs: (): Promise<any[]> => ipcRenderer.invoke('get-songs'),
   getAlbums: (): Promise<any[]> => ipcRenderer.invoke('get-albums'),
-  getArtists: (): Promise<any[]> => ipcRenderer.invoke('get-artists'),
-
-  // --- REVISED Music Player API ---
-
-  // Commands from Renderer -> Main
-  playSong: (songIndex?: number): void => ipcRenderer.send('play-song', songIndex),
-  playNextSong: (): void => ipcRenderer.send('play-next-song'),
-  playPreviousSong: (): void => ipcRenderer.send('play-previous-song'),
-  getCurrentSongDetails: (): Promise<any> => ipcRenderer.invoke('get-current-song-details'),
-  requestPlayNextSong: (): void => ipcRenderer.send('request-play-next-song'),
-  updatePlaybackState: (state: { isPlaying: boolean; currentTime: number }): void =>
-    ipcRenderer.send('playback-state-update', state),
-
-  // Listeners for events from Main -> Renderer
-  onSongLoading: (callback: (isLoading: boolean) => void) => {
-    const handler = (_event, isLoading) => callback(isLoading)
-    ipcRenderer.on('song-loading', handler)
-    return () => ipcRenderer.removeListener('song-loading', handler)
-  },
-  onPlayFile: (callback: (payload: { details: any; filePath: string }) => void) => {
-    const handler = (_event, payload) => callback(payload)
-    ipcRenderer.on('play-file', handler)
-    return () => ipcRenderer.removeListener('play-file', handler)
-  }
+  getArtists: (): Promise<any[]> => ipcRenderer.invoke('get-artists')
 }
 
 // ... contextBridge logic remains the same

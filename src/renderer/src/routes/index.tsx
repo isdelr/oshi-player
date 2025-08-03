@@ -32,12 +32,6 @@ function LocalFilesHome(): JSX.Element {
     libraryActions.loadLibrary()
   }, [libraryActions])
 
-  // Set the songs list as the current playlist when it loads
-  useEffect(() => {
-    if (songs.length > 0) {
-      playerActions.setPlaylist(songs)
-    }
-  }, [songs, playerActions])
 
   if (isScanning) {
     return (
@@ -134,7 +128,7 @@ function LocalFilesHome(): JSX.Element {
                         if (isActive) {
                           playerActions.togglePlayPause()
                         } else {
-                          playerActions.playSong(index)
+                        playerActions.playSong(songs, index)
                         }
                       }}
                     >

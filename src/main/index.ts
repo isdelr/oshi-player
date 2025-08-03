@@ -1,7 +1,6 @@
 // src/main/index.ts
-
 import { app, shell, BrowserWindow, ipcMain, screen, dialog, protocol, Menu } from 'electron'
-import path, { join } from 'path'
+import { join, normalize, resolve } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { DatabaseService } from './database'
@@ -21,13 +20,11 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
-    // Frameless Window
     frame: false,
     titleBarStyle: 'hidden',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
-      // Enable nodeIntegration to allow the `howler` package to work in the renderer
       nodeIntegration: true,
       contextIsolation: false
     }
@@ -50,7 +47,7 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
-  // HMR for renderer base on electron-vite cli.
+  // HMR for renderer based on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
@@ -66,69 +63,101 @@ protocol.registerSchemesAsPrivileged([
       standard: true,
       secure: true,
       supportFetchAPI: true,
-      corsEnabled: false,
+      corsEnabled: true, // Recommended to be true for range requests
       stream: true
     }
   }
 ])
 
-
 app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.oshi')
 
-  // ... (registerStreamProtocol remains exactly the same)
+  // --- MODIFIED PROTOCOL HANDLER ---
   protocol.registerStreamProtocol('safe-file', (request, callback) => {
     try {
-      let filePath = decodeURI(request.url.replace('safe-file://', ''))
-      if (process.platform === 'win32') {
-        filePath = filePath.charAt(0) + ':' + filePath.slice(1)
-      }
-      const normalizedPath = path.normalize(filePath)
+      console.log('🎵 Protocol handler received URL:', request.url)
 
-      // Security check
-      if (!fs.existsSync(normalizedPath)) {
-        console.error('File not found for streaming:', normalizedPath)
+      // Extract the file path from safe-file:// protocol
+      let filePath = request.url.replace('safe-file://', '')
+
+      // Handle Windows paths - ensure we have the proper format
+      if (process.platform === 'win32') {
+        // If path starts with a drive letter (like 'c/Users/...'), add the colon
+        if (filePath.match(/^[a-zA-Z]\//)) {
+          filePath = filePath.replace(/^([a-zA-Z])\//, '$1:/')
+        }
+        // Convert forward slashes to backslashes for Windows
+        filePath = filePath.replace(/\//g, '\\')
+      }
+
+      // Decode URL encoding (handles special characters like Japanese text)
+      filePath = decodeURIComponent(filePath)
+
+      console.log('📁 Decoded and normalized file path:', filePath)
+
+      // Check for file existence and read permissions
+      if (!fs.existsSync(filePath)) {
+        console.error('❌ File not found for streaming:', filePath)
+        console.error('🔗 Original URL was:', request.url)
         callback({ statusCode: 404 })
         return
       }
 
-      const stat = fs.statSync(normalizedPath)
-      const fileSize = stat.size
-      const range = (request.headers.Range || request.headers.range) as string | undefined
-      const contentType = mime.getType(normalizedPath) || 'application/octet-stream'
+      try {
+        fs.accessSync(filePath, fs.constants.R_OK)
+      } catch (accessError) {
+        console.error('🚫 File not accessible for streaming:', filePath, accessError)
+        callback({ statusCode: 403 })
+        return
+      }
 
-      if (range) {
-        const parts = String(range)
-          .replace(/bytes=/, '')
-          .split('-')
+      // Proceed with creating the stream response
+      const stat = fs.statSync(filePath)
+      const fileSize = stat.size
+      const contentType = mime.getType(filePath) || 'application/octet-stream'
+
+      const range = request.headers.Range || request.headers.range
+
+      if (range && range.startsWith('bytes=')) {
+        const parts = range.replace(/bytes=/, '').split('-')
         const start = parseInt(parts[0], 10)
         const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1
-        const validStart = isNaN(start) ? 0 : start
-        const validEnd = isNaN(end) ? fileSize - 1 : end
-        const chunksize = validEnd - validStart + 1
-        const head = {
-          'Content-Range': `bytes ${validStart}-${validEnd}/${fileSize}`,
+        const chunksize = end - start + 1
+
+        console.log(`⚡ Range request: Streaming bytes ${start}-${end} of ${fileSize}`)
+
+        const headers = {
+          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
           'Accept-Ranges': 'bytes',
-          'Content-Length': chunksize,
-          'Content-Type': contentType
+          'Content-Length': String(chunksize),
+          'Content-Type': contentType,
+          'Cache-Control': 'no-cache'
         }
+
         callback({
-          statusCode: 206,
-          headers: head,
-          data: fs.createReadStream(normalizedPath, { start: validStart, end: validEnd })
+          statusCode: 206, // HTTP 206 Partial Content
+          headers,
+          data: fs.createReadStream(filePath, { start, end })
         })
       } else {
-        const head = {
-          'Accept-Ranges': 'bytes',
-          'Content-Length': fileSize,
-          'Content-Type': contentType
+        console.log(' Full file request')
+        const headers = {
+          'Content-Length': String(fileSize),
+          'Content-Type': contentType,
+          'Accept-Ranges': 'bytes', // Important to tell the browser seeking is supported
+          'Cache-Control': 'no-cache'
         }
-        callback({ statusCode: 200, headers: head, data: fs.createReadStream(normalizedPath) })
+
+        callback({
+          statusCode: 200, // HTTP 200 OK
+          headers,
+          data: fs.createReadStream(filePath)
+        })
       }
     } catch (error) {
-      console.error('Protocol stream error:', error)
-      callback({ statusCode: 500 }) // Internal Server Error
+      console.error('💥 Protocol stream error:', error)
+      callback({ statusCode: 500 })
     }
   })
 
@@ -175,15 +204,17 @@ app.whenReady().then(async () => {
     if (!window) return false
     const result = await dialog.showOpenDialog(window, { properties: ['openDirectory'] })
     if (!result.canceled && result.filePaths.length > 0) {
-      const path = result.filePaths[0]
-      await dbService.addMusicDirectory(path)
+      const selectedPath = result.filePaths[0]
+      const normalizedPath = normalize(resolve(selectedPath))
+      await dbService.addMusicDirectory(normalizedPath)
       return true
     }
     return false
   })
 
-  ipcMain.handle('remove-music-directory', async (_, path) => {
-    await dbService.removeMusicDirectory(path)
+  ipcMain.handle('remove-music-directory', async (_, directoryPath) => {
+    const normalizedPath = normalize(resolve(directoryPath))
+    await dbService.removeMusicDirectory(normalizedPath)
   })
 
   ipcMain.handle('scan-folders', async () => {
@@ -204,32 +235,6 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('get-artists', async () => {
     return await dbService.getArtists()
-  })
-
-  // --- IPC for Music Player ---
-  ipcMain.on('play-song', (_, songIndex?: number) => {
-    musicPlayerService.play(songIndex)
-  })
-
-  ipcMain.on('play-next-song', () => {
-    musicPlayerService.playNext()
-  })
-
-  ipcMain.on('play-previous-song', () => {
-    musicPlayerService.playPrevious()
-  })
-
-  ipcMain.on('request-play-next-song', () => {
-    musicPlayerService.playNext()
-  })
-
-  ipcMain.on('playback-state-update', (_, state: { isPlaying: boolean; currentTime: number }) => {
-    musicPlayerService.updatePlaybackState(state)
-  })
-
-  // This is the handler that was causing the error
-  ipcMain.handle('get-current-song-details', () => {
-    return musicPlayerService.getCurrentSongDetails()
   })
 
   createWindow()

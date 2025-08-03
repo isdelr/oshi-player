@@ -170,7 +170,7 @@ class DatabaseService {
   }
 
   private isAudioFile(filePath: string): boolean {
-    const supportedExtensions = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac', '.opus']
+    const supportedExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.opus', '.flac']
     const ext = path.extname(filePath).toLowerCase()
     return supportedExtensions.includes(ext)
   }
@@ -178,7 +178,7 @@ class DatabaseService {
   private async getEmbeddedArtwork(pictures: mm.IPicture[] | undefined): Promise<string | null> {
     if (!pictures || pictures.length === 0) return null
     const picture = pictures[0]
-    return `data:${picture.format};base64,${picture.data.toString('base64')}`
+    return `data:${picture.format};base64,${picture.data.toString()}`
   }
 
   public async addSong(filePath: string): Promise<void> {

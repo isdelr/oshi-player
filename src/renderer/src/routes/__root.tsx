@@ -1,6 +1,6 @@
 // src/renderer/src/routes/__root.tsx
 import { createRootRoute, Outlet, Link} from '@tanstack/react-router'
-import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
+// import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { LeftSidebar } from '@renderer/components/LeftSidebar'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@renderer/components/ui/sidebar'
 import { JSX } from 'react'

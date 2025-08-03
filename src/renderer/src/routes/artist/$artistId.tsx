@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableRow } from '../../components/ui/table
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar'
 import { Button } from '@renderer/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@renderer/components/ui/card'
-import { ArrowRight, Heart, Play, Users } from 'lucide-react'
+import { ArrowRight, Heart, Play } from 'lucide-react'
 
 // --- MOCK DATA ---
 const artistData = {
