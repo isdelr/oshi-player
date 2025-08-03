@@ -9,6 +9,7 @@ export interface Song {
   duration: string
   artwork: string
   path: string
+  rawDuration: number
 }
 
 export interface Album {
@@ -38,7 +39,7 @@ export interface IElectronAPI {
 
   // Library Management
   getMusicDirectories: () => Promise<string[]>
-  addMusicDirectory: () => Promise<boolean> // returns true on success
+  addMusicDirectory: () => Promise<boolean>
   removeMusicDirectory: (path: string) => Promise<void>
   scanFolders: () => Promise<void>
 
@@ -47,16 +48,19 @@ export interface IElectronAPI {
   getAlbums: () => Promise<Album[]>
   getArtists: () => Promise<Artist[]>
 
-  // Music Player
+  // --- REVISED Music Player API ---
+
+  // Commands from Renderer -> Main
   playSong: (songIndex?: number) => void
-  pauseSong: () => void
-  resumeSong: () => void
   playNextSong: () => void
   playPreviousSong: () => void
-  seekSong: (time: number) => void
   getCurrentSongDetails: () => Promise<any>
-  onSongChanged: (callback: (songDetails: any) => void) => () => void
-  onPlaybackStateChanged: (callback: (playbackState: any) => void) => () => void
+  requestPlayNextSong: () => void
+  updatePlaybackState: (state: { isPlaying: boolean; currentTime: number }) => void
+
+  // Listeners for events from Main -> Renderer
+  onSongLoading: (callback: (isLoading: boolean) => void) => () => void
+  onPlayFile: (callback: (payload: { details: any; filePath: string }) => void) => () => void
 }
 
 declare global {

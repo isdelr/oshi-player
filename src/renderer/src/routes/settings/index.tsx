@@ -31,7 +31,8 @@ import {
   Monitor,
   Smartphone,
   AlertTriangle,
-  Loader2
+  Loader2,
+  RefreshCw
 } from 'lucide-react'
 import { RadioGroup, RadioGroupItem } from '@renderer/components/ui/radio-group'
 import { useLibraryStore } from '@renderer/stores/useLibraryStore'
@@ -42,7 +43,7 @@ export const Route = createFileRoute('/settings/')({
 
 function SettingsPage(): JSX.Element {
   const { folders, isScanning, actions } = useLibraryStore()
-  
+
   useEffect(() => {
     const loadFolders = async () => {
       const initialFolders = await window.api.getMusicDirectories()
@@ -100,25 +101,21 @@ function SettingsPage(): JSX.Element {
                 </div>
               )}
             </div>
-            <div className="flex gap-4">
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={actions.addFolder}
-                disabled={isScanning}
-              >
+            <div className="flex gap-4 justify-center items-center">
+              <Button className="w-fit" onClick={actions.addFolder} disabled={isScanning}>
                 <FolderPlus className="size-4 mr-2" />
                 Add Folder
               </Button>
-              {/* <Button
-                variant="secondary"
-                className="w-full"
+              <Button
+                variant="outline"
+                className="w-fit"
                 onClick={actions.rescanFolders}
                 disabled={isScanning}
               >
+                {!isScanning && <RefreshCw className="mr-2 size-4" />}
                 {isScanning ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
                 {isScanning ? 'Scanning...' : 'Rescan All Folders'}
-              </Button> */}
+              </Button>
             </div>
           </div>
           <div className="flex items-center justify-between p-3 rounded-lg border">

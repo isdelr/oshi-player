@@ -9,6 +9,7 @@ export interface Song {
   duration: string
   artwork: string
   path: string
+  rawDuration: number
 }
 
 export interface Album {
@@ -38,16 +39,6 @@ interface LibraryState {
     rescanFolders: () => Promise<void>
   }
 }
-
-// NOTE: This assumes you have the following functions defined on `window.api`
-// in your Electron preload script, which communicate with the main process.
-// - getMusicDirectories(): Promise<string[]>
-// - addMusicDirectory(): Promise<string | null> (returns new path or null if cancelled)
-// - removeMusicDirectory(path: string): Promise<void>
-// - scanFolders(): Promise<void>
-// - getSongs(): Promise<Song[]>
-// - getAlbums(): Promise<Album[]>
-// - getArtists(): Promise<Artist[]>
 
 export const useLibraryStore = create<LibraryState>((set, get) => ({
   songs: [],

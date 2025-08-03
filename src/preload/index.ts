@@ -1,3 +1,4 @@
+// src/preload/index.ts
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
@@ -32,33 +33,31 @@ const api = {
   getAlbums: (): Promise<any[]> => ipcRenderer.invoke('get-albums'),
   getArtists: (): Promise<any[]> => ipcRenderer.invoke('get-artists'),
 
-  // Music Player APIs
+  // --- REVISED Music Player API ---
+
+  // Commands from Renderer -> Main
   playSong: (songIndex?: number): void => ipcRenderer.send('play-song', songIndex),
-  pauseSong: (): void => ipcRenderer.send('pause-song'),
-  resumeSong: (): void => ipcRenderer.send('resume-song'),
   playNextSong: (): void => ipcRenderer.send('play-next-song'),
   playPreviousSong: (): void => ipcRenderer.send('play-previous-song'),
-  seekSong: (time: number): void => ipcRenderer.send('seek-song', time),
   getCurrentSongDetails: (): Promise<any> => ipcRenderer.invoke('get-current-song-details'),
-  onSongChanged: (callback: (songDetails: any) => void): (() => void) => {
-    const handler = (_event, songDetails: any): void => callback(songDetails)
-    ipcRenderer.on('song-changed', handler)
-    return () => {
-      ipcRenderer.removeListener('song-changed', handler)
-    }
+  requestPlayNextSong: (): void => ipcRenderer.send('request-play-next-song'),
+  updatePlaybackState: (state: { isPlaying: boolean; currentTime: number }): void =>
+    ipcRenderer.send('playback-state-update', state),
+
+  // Listeners for events from Main -> Renderer
+  onSongLoading: (callback: (isLoading: boolean) => void) => {
+    const handler = (_event, isLoading) => callback(isLoading)
+    ipcRenderer.on('song-loading', handler)
+    return () => ipcRenderer.removeListener('song-loading', handler)
   },
-  onPlaybackStateChanged: (callback: (playbackState: any) => void): (() => void) => {
-    const handler = (_event, playbackState: any): void => callback(playbackState)
-    ipcRenderer.on('playback-state', handler)
-    return () => {
-      ipcRenderer.removeListener('playback-state', handler)
-    }
+  onPlayFile: (callback: (payload: { details: any; filePath: string }) => void) => {
+    const handler = (_event, payload) => callback(payload)
+    ipcRenderer.on('play-file', handler)
+    return () => ipcRenderer.removeListener('play-file', handler)
   }
 }
 
-// Use `contextBridge` APIs to expose Electron APIs to
-// renderer only if context isolation is enabled, otherwise
-// just add to the DOM global.
+// ... contextBridge logic remains the same
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)

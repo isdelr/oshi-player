@@ -1,7 +1,11 @@
+// src/renderer/src/main.tsx
 import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
-import "./assets/globals.css"
+import './assets/globals.css'
+
+// THIS IS THE NEW LINE
+import '@renderer/lib/howlerPlayer'
 
 // Import the generated route tree
 import { routeTree } from './routeTree.gen'
@@ -9,14 +13,13 @@ import { routeTree } from './routeTree.gen'
 // Create a new router instance
 const router = createRouter({ routeTree })
 
-// Register the router instance for type safety
+// ... rest of the file is unchanged
 declare module '@tanstack/react-router' {
   interface Register {
     router: typeof router
   }
 }
 
-// Render the app
 const rootElement = document.getElementById('root')!
 if (!rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement)

@@ -10,25 +10,34 @@ import {
 } from '../components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
-import { Album, Clock, FolderSearch, Mic2, Music, Play, Plus, Heart } from 'lucide-react'
+import { Album, Clock, FolderSearch, Mic2, Music, Pause, Play } from 'lucide-react'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { Button, buttonVariants } from '@renderer/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
 import { useLibraryStore } from '@renderer/stores/useLibraryStore'
 import { Skeleton } from '@renderer/components/ui/skeleton'
+import { usePlayerStore } from '@renderer/stores/usePlayerStore'
 
 export const Route = createFileRoute('/')({
   component: LocalFilesHome
 })
 
 function LocalFilesHome(): JSX.Element {
-  // Connect to the library store
-  const { songs, albums, artists, isScanning, actions } = useLibraryStore()
+  // Connect to the library and player stores
+  const { songs, albums, artists, isScanning, actions: libraryActions } = useLibraryStore()
+  const { currentSong, isPlaying, actions: playerActions } = usePlayerStore()
 
   // Load the library on component mount
   useEffect(() => {
-    actions.loadLibrary()
-  }, [actions])
+    libraryActions.loadLibrary()
+  }, [libraryActions])
+
+  // Set the songs list as the current playlist when it loads
+  useEffect(() => {
+    if (songs.length > 0) {
+      playerActions.setPlaylist(songs)
+    }
+  }, [songs, playerActions])
 
   if (isScanning) {
     return (
@@ -114,40 +123,72 @@ function LocalFilesHome(): JSX.Element {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {songs.map((song, index) => (
-                  <TableRow
-                    key={song.id}
-                    className="group border-0 hover:bg-muted/30 transition-colors cursor-pointer h-14"
-                  >
-                    <TableCell className="text-muted-foreground text-sm pl-2">
-                      {index + 1}
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="size-10 rounded-sm">
-                          <AvatarImage src={song.artwork} />
-                          <AvatarFallback className="rounded-sm bg-muted text-xs">
-                            {song.name[0]}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-normal text-foreground leading-tight truncate">
-                            {song.name}
-                          </p>
-                          <p className="text-sm text-muted-foreground truncate mt-0.5">
-                            {song.artist}
-                          </p>
+                {songs.map((song, index) => {
+                  const isActive = currentSong?.id === song.id
+                  return (
+                    <TableRow
+                      key={song.id}
+                      className="group border-0 hover:bg-muted/30 transition-colors cursor-pointer h-14"
+                      data-active={isActive}
+                      onClick={() => {
+                        if (isActive) {
+                          playerActions.togglePlayPause()
+                        } else {
+                          playerActions.playSong(index)
+                        }
+                      }}
+                    >
+                      <TableCell className="text-muted-foreground text-sm pl-2">
+                        <div className="flex items-center justify-center w-6 h-6">
+                          {isActive ? (
+                            isPlaying ? (
+                              <Pause className="size-4 text-primary" />
+                            ) : (
+                              <Play className="size-4 text-primary fill-primary" />
+                            )
+                          ) : (
+                            <>
+                              <span className="group-hover:hidden text-muted-foreground/80 font-normal">
+                                {index + 1}
+                              </span>
+                              <div className="size-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity rounded-full items-center justify-center hidden group-hover:flex">
+                                <Play className="size-3 fill-current text-foreground" />
+                              </div>
+                            </>
+                          )}
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground py-2 font-normal">
-                      {song.album}
-                    </TableCell>
-                    <TableCell className="text-right text-sm text-muted-foreground py-2 font-normal tabular-nums">
-                      {song.duration}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="size-10 rounded-sm">
+                            <AvatarImage src={song.artwork} />
+                            <AvatarFallback className="rounded-sm bg-muted text-xs">
+                              {song.name[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p
+                              className={`font-normal leading-tight truncate ${
+                                isActive ? 'text-primary' : 'text-foreground'
+                              }`}
+                            >
+                              {song.name}
+                            </p>
+                            <p className="text-sm text-muted-foreground truncate mt-0.5">
+                              {song.artist}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground py-2 font-normal">
+                        {song.album}
+                      </TableCell>
+                      <TableCell className="text-right text-sm text-muted-foreground py-2 font-normal tabular-nums">
+                        {song.duration}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           </TabsContent>
