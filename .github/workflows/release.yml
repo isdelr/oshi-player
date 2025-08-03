@@ -1,37 +1,61 @@
-name: Build/release
+name: Build and Release
 
-on: push
+on:
+  push:
+    branches: ['main']
+  pull_request:
+    branches: ['main']
 
 jobs:
-  release:
+  build:
     runs-on: ${{ matrix.os }}
 
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
 
     steps:
       - name: Check out Git repository
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
 
-      - name: Install Node.js, NPM and Yarn
-        uses: actions/setup-node@v1
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 24
 
-      - name: Build/release Electron app
-        uses: samuelmeuli/action-electron-builder@v1
-        with:
-          # GitHub token, automatically provided to the action
-          # (No need to define this secret in the repo settings)
-          github_token: ${{ secrets.github_token }}
+      - name: Install dependencies
+        run: npm install
 
-          # If the commit is tagged with a version (e.g. "v1.0.0"),
-          # release the app after building
-          release: ${{ startsWith(github.ref, 'refs/tags/v') }}
-      
-      - name: Upload artifacts
+      - name: Build application
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            npm run build:linux
+          elif [ "$RUNNER_OS" == "Windows" ]; then
+            npm run build:win
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            npm run build:mac
+          fi
+
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: oshi-player-artifacts
+          name: oshi-player-${{ matrix.os }}
           path: dist/
+
+  release:
+    needs: build # This job will only run if the 'build' job is successful
+    if: startsWith(github.ref, 'refs/tags/v') # This job will only run on a version tag
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
