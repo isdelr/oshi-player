@@ -47,7 +47,11 @@ export interface IElectronAPI {
   getSongs: () => Promise<Song[]>
   getAlbums: () => Promise<Album[]>
   getArtists: () => Promise<Artist[]>
-
+  getAlbum: (id: string) => Promise<Album | null>
+  getArtist: (id: string) => Promise<Artist | null>
+  getSongsByAlbumId: (albumId: string) => Promise<Song[]>
+  getAlbumsByArtistId: (artistId: string) => Promise<Album[]>
+  getSongsByArtistId: (artistId: string) => Promise<Song[]>
 }
 
 declare global {

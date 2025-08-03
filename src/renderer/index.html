@@ -11,10 +11,10 @@
         script-src 'self';
         style-src 'self' 'unsafe-inline';
         img-src 'self' data:;
-        media-src 'self' safe-file:;
+        media-src 'self' safe-file: blob:;
+        connect-src 'self' safe-file:;
       "
     />
-
   </head>
 
   <body>

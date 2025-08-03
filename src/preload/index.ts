@@ -1,7 +1,6 @@
 // src/preload/index.ts
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import { Song } from './index.d'
 
 // Custom APIs for renderer
 const api = {
@@ -32,7 +31,15 @@ const api = {
   // Library Data
   getSongs: (): Promise<any[]> => ipcRenderer.invoke('get-songs'),
   getAlbums: (): Promise<any[]> => ipcRenderer.invoke('get-albums'),
-  getArtists: (): Promise<any[]> => ipcRenderer.invoke('get-artists')
+  getArtists: (): Promise<any[]> => ipcRenderer.invoke('get-artists'),
+  getAlbum: (id: string): Promise<any> => ipcRenderer.invoke('get-album', id),
+  getArtist: (id: string): Promise<any> => ipcRenderer.invoke('get-artist', id),
+  getSongsByAlbumId: (albumId: string): Promise<any[]> =>
+    ipcRenderer.invoke('get-songs-by-album-id', albumId),
+  getAlbumsByArtistId: (artistId: string): Promise<any[]> =>
+    ipcRenderer.invoke('get-albums-by-artist-id', artistId),
+  getSongsByArtistId: (artistId: string): Promise<any[]> =>
+    ipcRenderer.invoke('get-songs-by-artist-id', artistId)
 }
 
 // ... contextBridge logic remains the same

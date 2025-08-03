@@ -1,6 +1,6 @@
 // src/renderer/src/routes/favorites/index.tsx
 import { createFileRoute } from '@tanstack/react-router'
-import { JSX } from 'react'
+import { JSX, useMemo } from 'react'
 import {
   Table,
   TableBody,
@@ -8,40 +8,15 @@ import {
   TableHead,
   TableHeader,
   TableRow
-} from '../../components/ui/table'
-import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar'
-import { Album, Clock, Heart, ListMusic, Mic2, Music, Play, Plus } from 'lucide-react'
+} from '@renderer/components/ui/table'
+import { Avatar, AvatarFallback, AvatarImage } from '@renderer/components/ui/avatar'
+import { Album, Heart, ListMusic, Mic2, Music } from 'lucide-react'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { Button } from '@renderer/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
-
-// Placeholder Data
-const favoriteSongs = [
-  {
-    id: '1',
-    name: 'Bohemian Rhapsody',
-    artist: 'Queen',
-    album: 'A Night at the Opera',
-    duration: '5:55',
-    artwork: 'https://via.placeholder.com/40/3b82f6/ffffff?text=Q'
-  },
-  {
-    id: '2',
-    name: 'Stairway to Heaven',
-    artist: 'Led Zeppelin',
-    album: 'Led Zeppelin IV',
-    duration: '8:02',
-    artwork: 'https://via.placeholder.com/40/f59e0b/ffffff?text=LZ'
-  },
-  {
-    id: '3',
-    name: 'Blinding Lights',
-    artist: 'The Weeknd',
-    album: 'After Hours',
-    duration: '3:20',
-    artwork: 'https://via.placeholder.com/40/10b981/ffffff?text=BL'
-  }
-]
+import { SongList } from '@renderer/components/SongList'
+import { useLibraryStore } from '@renderer/stores/useLibraryStore'
+import { useFavoritesStore } from '@renderer/stores/useFavoritesStore'
 
 const favoriteAlbums = [
   {
@@ -97,6 +72,14 @@ export const Route = createFileRoute('/favorites/')({
 })
 
 function Favorites(): JSX.Element {
+  const { songs: allSongs } = useLibraryStore()
+  const { favoriteSongIds } = useFavoritesStore()
+
+  const favoriteSongs = useMemo(
+    () => allSongs.filter((song) => favoriteSongIds.has(song.id)),
+    [allSongs, favoriteSongIds]
+  )
+
   return (
     <div className="h-full w-full">
       <div className="mb-8">
@@ -128,90 +111,7 @@ function Favorites(): JSX.Element {
 
         <ScrollArea className="h-[calc(100vh-16rem)] custom-scrollbar">
           <TabsContent value="songs">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-0 hover:bg-transparent">
-                  <TableHead className="w-[40px] text-xs font-normal text-muted-foreground/60 pb-2 pl-2">
-                    #
-                  </TableHead>
-                  <TableHead className="text-xs font-normal text-muted-foreground/60 pb-2">
-                    TITLE
-                  </TableHead>
-                  <TableHead className="text-xs font-normal text-muted-foreground/60 pb-2">
-                    ALBUM
-                  </TableHead>
-                  <TableHead className="w-[60px] text-xs font-normal text-muted-foreground/60 pb-2 text-right">
-                    <Clock className="size-4 ml-auto" />
-                  </TableHead>
-                  <TableHead className="w-[50px] pb-2"></TableHead>
-                  <TableHead className="w-[50px] pb-2"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {favoriteSongs.map((song, index) => (
-                  <TableRow
-                    key={song.id}
-                    className="group border-0 hover:bg-muted/30 transition-colors cursor-pointer h-14"
-                  >
-                    <TableCell className="text-muted-foreground text-sm pl-2">
-                      <div className="flex items-center justify-center w-6">
-                        <span className="group-hover:hidden text-muted-foreground/80 font-normal">
-                          {index + 1}
-                        </span>
-                        <Button
-                          size="sm"
-                          className="size-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity control-button rounded-full"
-                        >
-                          <Play className="size-3 fill-current" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="size-10 rounded-sm">
-                          <AvatarImage src={song.artwork} className="object-cover" />
-                          <AvatarFallback className="rounded-sm text-xs font-medium bg-muted">
-                            {song.name.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-normal text-foreground leading-tight truncate">
-                            {song.name}
-                          </p>
-                          <p className="text-sm text-muted-foreground truncate mt-0.5">
-                            {song.artist}
-                          </p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground py-2 font-normal">
-                      {song.album}
-                    </TableCell>
-                    <TableCell className="text-right text-sm text-muted-foreground py-2 font-normal tabular-nums">
-                      {song.duration}
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="size-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-transparent"
-                      >
-                        <Plus className="size-4 text-muted-foreground hover:text-foreground transition-colors" />
-                      </Button>
-                    </TableCell>
-                    <TableCell className="py-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="size-8 p-0 transition-opacity hover:bg-transparent text-red-500 hover:text-red-400"
-                      >
-                        <Heart className="size-4 fill-current" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <SongList songs={favoriteSongs} />
           </TabsContent>
           <TabsContent value="albums">
             {/* Albums Table */}

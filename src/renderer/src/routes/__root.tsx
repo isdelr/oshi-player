@@ -31,8 +31,12 @@ function RootLayout(): JSX.Element {
             <LeftSidebar />
             <SidebarInset className="flex flex-col p-0">
               <TitleBar>
-                <header className="flex h-16 shrink-0 items-center gap-4 bg-transparent px-4">
-                  <div className="flex items-center gap-2">
+                <div className="flex h-16 w-full items-center gap-4 bg-transparent px-4">
+                  {/* Wrap interactive elements in a div with 'no-drag' */}
+                  <div
+                    className="flex items-center gap-2"
+                    style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                  >
                     <div className="md:hidden">
                       <SidebarTrigger />
                     </div>
@@ -56,15 +60,23 @@ function RootLayout(): JSX.Element {
                     </Button>
                   </div>
 
+                  {/* The search bar area. The flex-1 div itself remains draggable. */}
                   <div className="flex-1">
                     {showSearchBar && (
-                      <div className="mx-auto w-full max-w-xl">
+                      <div
+                        className="mx-auto w-full max-w-xl"
+                        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                      >
                         <GlobalSearch />
                       </div>
                     )}
                   </div>
 
-                  <div className="mr-4 flex items-center gap-2">
+                  {/* Wrap interactive elements in a div with 'no-drag' */}
+                  <div
+                    className="mr-4 flex items-center gap-2"
+                    style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                  >
                     <ThemeSwitcher />
                     <Link to="/settings" activeOptions={{ exact: true }}>
                       {({ isActive }) => (
@@ -79,9 +91,9 @@ function RootLayout(): JSX.Element {
                       )}
                     </Link>
                   </div>
-                </header>
+                </div>
               </TitleBar>
-              <main className="flex-1 overflow-y-auto p-8">
+              <main className="flex-1 p-8">
                 <Outlet />
               </main>
             </SidebarInset>

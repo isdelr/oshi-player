@@ -1,22 +1,15 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { JSX, useEffect } from 'react'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '../components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar'
-import { Album, Clock, FolderSearch, Mic2, Music, Pause, Play } from 'lucide-react'
+import { Album, FolderSearch, Loader2, Mic2, Music, Play, RefreshCw } from 'lucide-react'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { Button, buttonVariants } from '@renderer/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@renderer/components/ui/tabs'
 import { useLibraryStore } from '@renderer/stores/useLibraryStore'
-import { Skeleton } from '@renderer/components/ui/skeleton'
 import { usePlayerStore } from '@renderer/stores/usePlayerStore'
+import { Skeleton } from '@renderer/components/ui/skeleton'
+import { SongList } from '@renderer/components/SongList'
 
 export const Route = createFileRoute('/')({
   component: LocalFilesHome
@@ -25,13 +18,21 @@ export const Route = createFileRoute('/')({
 function LocalFilesHome(): JSX.Element {
   // Connect to the library and player stores
   const { songs, albums, artists, isScanning, actions: libraryActions } = useLibraryStore()
-  const { currentSong, isPlaying, actions: playerActions } = usePlayerStore()
+  const playerActions = usePlayerStore((s) => s.actions)
 
   // Load the library on component mount
   useEffect(() => {
     libraryActions.loadLibrary()
   }, [libraryActions])
 
+  const handlePlayAlbum = async (e: React.MouseEvent, albumId: string): Promise<void> => {
+    e.preventDefault()
+    e.stopPropagation()
+    const albumSongs = await window.api.getSongsByAlbumId(albumId)
+    if (albumSongs.length > 0) {
+      playerActions.playSong(albumSongs, 0)
+    }
+  }
 
   if (isScanning) {
     return (
@@ -75,9 +76,26 @@ function LocalFilesHome(): JSX.Element {
 
   return (
     <div className="h-full w-full">
-      <div className="mb-8">
-        <h1 className="text-5xl font-bold tracking-tight text-foreground mb-2">Local Files</h1>
-        <p className="text-muted-foreground text-lg">Your personal music collection.</p>
+      <div className="flex items-start justify-between mb-8">
+        <div>
+          <h1 className="text-5xl font-bold tracking-tight text-foreground mb-2">Local Files</h1>
+          <p className="text-muted-foreground text-lg">Your personal music collection.</p>
+        </div>
+        <div className="flex items-center gap-2 mt-1">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={libraryActions.rescanFolders}
+            disabled={isScanning}
+            title="Reload folders"
+          >
+            {isScanning ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-5 w-5" />
+            )}
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="songs" className="w-full">
@@ -99,92 +117,7 @@ function LocalFilesHome(): JSX.Element {
         <ScrollArea className="h-[calc(100vh-16rem)] custom-scrollbar">
           {/* Songs View */}
           <TabsContent value="songs">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-0 hover:bg-transparent">
-                  <TableHead className="w-[40px] text-xs font-normal text-muted-foreground/60 pb-2 pl-2">
-                    #
-                  </TableHead>
-                  <TableHead className="text-xs font-normal text-muted-foreground/60 pb-2">
-                    TITLE
-                  </TableHead>
-                  <TableHead className="text-xs font-normal text-muted-foreground/60 pb-2">
-                    ALBUM
-                  </TableHead>
-                  <TableHead className="w-[60px] text-xs font-normal text-muted-foreground/60 pb-2 text-right">
-                    <Clock className="size-4 ml-auto" />
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {songs.map((song, index) => {
-                  const isActive = currentSong?.id === song.id
-                  return (
-                    <TableRow
-                      key={song.id}
-                      className="group border-0 hover:bg-muted/30 transition-colors cursor-pointer h-14"
-                      data-active={isActive}
-                      onClick={() => {
-                        if (isActive) {
-                          playerActions.togglePlayPause()
-                        } else {
-                        playerActions.playSong(songs, index)
-                        }
-                      }}
-                    >
-                      <TableCell className="text-muted-foreground text-sm pl-2">
-                        <div className="flex items-center justify-center w-6 h-6">
-                          {isActive ? (
-                            isPlaying ? (
-                              <Pause className="size-4 text-primary" />
-                            ) : (
-                              <Play className="size-4 text-primary fill-primary" />
-                            )
-                          ) : (
-                            <>
-                              <span className="group-hover:hidden text-muted-foreground/80 font-normal">
-                                {index + 1}
-                              </span>
-                              <div className="size-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity rounded-full items-center justify-center hidden group-hover:flex">
-                                <Play className="size-3 fill-current text-foreground" />
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-2">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="size-10 rounded-sm">
-                            <AvatarImage src={song.artwork} />
-                            <AvatarFallback className="rounded-sm bg-muted text-xs">
-                              {song.name[0]}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p
-                              className={`font-normal leading-tight truncate ${
-                                isActive ? 'text-primary' : 'text-foreground'
-                              }`}
-                            >
-                              {song.name}
-                            </p>
-                            <p className="text-sm text-muted-foreground truncate mt-0.5">
-                              {song.artist}
-                            </p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground py-2 font-normal">
-                        {song.album}
-                      </TableCell>
-                      <TableCell className="text-right text-sm text-muted-foreground py-2 font-normal tabular-nums">
-                        {song.duration}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
+            <SongList songs={songs} />
           </TabsContent>
           {/* Albums View */}
           <TabsContent value="albums">
@@ -200,7 +133,10 @@ function LocalFilesHome(): JSX.Element {
                         </AvatarFallback>
                       </Avatar>
                       <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <Button className="size-12 rounded-full play-button pulse-glow">
+                        <Button
+                          className="size-12 rounded-full play-button pulse-glow"
+                          onClick={(e) => handlePlayAlbum(e, album.id)}
+                        >
                           <Play className="size-6 fill-current" />
                         </Button>
                       </div>

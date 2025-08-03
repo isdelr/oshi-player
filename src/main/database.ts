@@ -135,6 +135,26 @@ export class DatabaseService {
     return this.sendCommand('get-artists')
   }
 
+  public getAlbum(id: string): Promise<Album | null> {
+    return this.sendCommand('get-album', id)
+  }
+
+  public getArtist(id: string): Promise<Artist | null> {
+    return this.sendCommand('get-artist', id)
+  }
+
+  public getSongsByAlbumId(albumId: string): Promise<Song[]> {
+    return this.sendCommand('get-songs-by-album-id', albumId)
+  }
+
+  public getAlbumsByArtistId(artistId: string): Promise<Album[]> {
+    return this.sendCommand('get-albums-by-artist-id', artistId)
+  }
+
+  public getSongsByArtistId(artistId: string): Promise<Song[]> {
+    return this.sendCommand('get-songs-by-artist-id', artistId)
+  }
+
   public async close(): Promise<void> {
     await this.sendCommand('close')
     await this.worker.terminate()

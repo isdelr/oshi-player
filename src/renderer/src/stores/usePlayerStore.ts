@@ -28,6 +28,7 @@ interface PlayerState {
     togglePlayPause: () => void
     playNext: () => void
     playPrevious: () => void
+    startSeeking: () => void
     seek: (time: number) => void
     setVolume: (volumeLevel: number) => void // Accepts 0-100
 
@@ -58,21 +59,24 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       audioRef = ref
     },
 
-    playSong: (songs, index) => {
+    playSong: async (songs, index) => {
       if (!audioRef?.current) return
       const newSong = songs[index]
       if (!newSong) return
 
       const formattedPath = `safe-file://${newSong.path}`
+      const audioBlob = await fetch(formattedPath)
 
-      audioRef.current.src = formattedPath
+      const audioUrl = URL.createObjectURL(await audioBlob.blob())
+      audioRef.current.src = audioUrl
 
       set({
         playlist: songs,
         currentIndex: index,
         currentSong: { ...newSong, isPlaying: true, currentTime: 0 },
         isPlaying: true,
-        currentTime: 0
+        currentTime: 0,
+        isSeeking: false // Reset seeking state when playing new song
       })
 
       // Play the audio
@@ -106,9 +110,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       get().actions.playSong(playlist, currentIndex - 1)
     },
 
+    startSeeking: () => {
+      set({ isSeeking: true })
+    },
+
     seek: (time) => {
       if (audioRef?.current) {
-        set({ isSeeking: true })
+        // Don't update isSeeking here - let the 'seeked' event handle it
         audioRef.current.currentTime = time
       }
     },
@@ -153,7 +161,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
     _handleSeeked: (e) => {
       // When seeking is finished, update the state and allow time updates again
-      set({ isSeeking: false, currentTime: e.currentTarget.currentTime })
+      set({
+        isSeeking: false,
+        currentTime: e.currentTarget.currentTime
+      })
     }
   }
 }))

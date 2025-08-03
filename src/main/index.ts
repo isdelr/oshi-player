@@ -1,12 +1,11 @@
 // src/main/index.ts
-import { app, shell, BrowserWindow, ipcMain, screen, dialog, protocol, Menu } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, screen, dialog, protocol, Menu, net } from 'electron'
 import { join, normalize, resolve } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { DatabaseService } from './database'
 import { MusicPlayerService } from './musicPlayerService'
-import fs from 'fs'
-import mime from 'mime'
+import { pathToFileURL } from 'url'
 
 Menu.setApplicationMenu(null)
 
@@ -63,101 +62,49 @@ protocol.registerSchemesAsPrivileged([
       standard: true,
       secure: true,
       supportFetchAPI: true,
-      corsEnabled: true, // Recommended to be true for range requests
+      corsEnabled: true,
       stream: true
     }
   }
 ])
 
 app.whenReady().then(async () => {
-  // Set app user model id for windows
   electronApp.setAppUserModelId('com.oshi')
 
-  // --- MODIFIED PROTOCOL HANDLER ---
-  protocol.registerStreamProtocol('safe-file', (request, callback) => {
+  protocol.handle('safe-file', async (request) => {
     try {
-      console.log('🎵 Protocol handler received URL:', request.url)
+      const urlPath = request.url.replace('safe-file://', '')
+      const decodedPath = decodeURIComponent(urlPath)
 
-      // Extract the file path from safe-file:// protocol
-      let filePath = request.url.replace('safe-file://', '')
+      // Fix the path construction for Windows
+      let filePath = decodedPath
 
-      // Handle Windows paths - ensure we have the proper format
+      // Handle Windows drive letters properly
       if (process.platform === 'win32') {
-        // If path starts with a drive letter (like 'c/Users/...'), add the colon
-        if (filePath.match(/^[a-zA-Z]\//)) {
-          filePath = filePath.replace(/^([a-zA-Z])\//, '$1:/')
+        // If path starts with a drive letter pattern like "c/Users/..."
+        if (/^[a-zA-Z]\//.test(filePath)) {
+          filePath = filePath.replace(/^([a-zA-Z])\//, '$1:\\')
         }
-        // Convert forward slashes to backslashes for Windows
-        filePath = filePath.replace(/\//g, '\\')
-      }
-
-      // Decode URL encoding (handles special characters like Japanese text)
-      filePath = decodeURIComponent(filePath)
-
-      console.log('📁 Decoded and normalized file path:', filePath)
-
-      // Check for file existence and read permissions
-      if (!fs.existsSync(filePath)) {
-        console.error('❌ File not found for streaming:', filePath)
-        console.error('🔗 Original URL was:', request.url)
-        callback({ statusCode: 404 })
-        return
-      }
-
-      try {
-        fs.accessSync(filePath, fs.constants.R_OK)
-      } catch (accessError) {
-        console.error('🚫 File not accessible for streaming:', filePath, accessError)
-        callback({ statusCode: 403 })
-        return
-      }
-
-      // Proceed with creating the stream response
-      const stat = fs.statSync(filePath)
-      const fileSize = stat.size
-      const contentType = mime.getType(filePath) || 'application/octet-stream'
-
-      const range = request.headers.Range || request.headers.range
-
-      if (range && range.startsWith('bytes=')) {
-        const parts = range.replace(/bytes=/, '').split('-')
-        const start = parseInt(parts[0], 10)
-        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1
-        const chunksize = end - start + 1
-
-        console.log(`⚡ Range request: Streaming bytes ${start}-${end} of ${fileSize}`)
-
-        const headers = {
-          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-          'Accept-Ranges': 'bytes',
-          'Content-Length': String(chunksize),
-          'Content-Type': contentType,
-          'Cache-Control': 'no-cache'
+        // If path doesn't have a colon after drive letter, add it
+        if (/^[a-zA-Z][^:]/.test(filePath)) {
+          filePath = filePath.replace(/^([a-zA-Z])/, '$1:')
         }
-
-        callback({
-          statusCode: 206, // HTTP 206 Partial Content
-          headers,
-          data: fs.createReadStream(filePath, { start, end })
-        })
-      } else {
-        console.log(' Full file request')
-        const headers = {
-          'Content-Length': String(fileSize),
-          'Content-Type': contentType,
-          'Accept-Ranges': 'bytes', // Important to tell the browser seeking is supported
-          'Cache-Control': 'no-cache'
-        }
-
-        callback({
-          statusCode: 200, // HTTP 200 OK
-          headers,
-          data: fs.createReadStream(filePath)
-        })
       }
+
+      const fileUrl = pathToFileURL(filePath).toString()
+
+      const response = await net.fetch(fileUrl, { headers: request.headers })
+      return response
     } catch (error) {
-      console.error('💥 Protocol stream error:', error)
-      callback({ statusCode: 500 })
+      console.error(`💥 Protocol handler error for URL ${request.url}:`, error)
+
+      if (error.message.includes('ERR_FILE_NOT_FOUND')) {
+        return new Response('File Not Found', { status: 404 })
+      }
+      if (error.message.includes('ERR_ACCESS_DENIED')) {
+        return new Response('Access Denied', { status: 403 })
+      }
+      return new Response('Internal Server Error', { status: 500 })
     }
   })
 
@@ -235,6 +182,26 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('get-artists', async () => {
     return await dbService.getArtists()
+  })
+
+  ipcMain.handle('get-album', async (_, id: string) => {
+    return await dbService.getAlbum(id)
+  })
+
+  ipcMain.handle('get-artist', async (_, id: string) => {
+    return await dbService.getArtist(id)
+  })
+
+  ipcMain.handle('get-songs-by-album-id', async (_, albumId: string) => {
+    return await dbService.getSongsByAlbumId(albumId)
+  })
+
+  ipcMain.handle('get-albums-by-artist-id', async (_, artistId: string) => {
+    return await dbService.getAlbumsByArtistId(artistId)
+  })
+
+  ipcMain.handle('get-songs-by-artist-id', async (_, artistId: string) => {
+    return await dbService.getSongsByArtistId(artistId)
   })
 
   createWindow()

@@ -1,4 +1,4 @@
-import { JSX, useEffect, useRef } from 'react'
+import { JSX, useEffect, useRef, useState } from 'react'
 import {
   Play,
   SkipBack,
@@ -36,17 +36,39 @@ const HTMLAudioComponent = ({ playerRef, actions }): JSX.Element => (
     style={{ display: 'none' }}
   />
 )
+
 export function MusicPlayer(): JSX.Element {
   const audioRef = useRef<HTMLAudioElement>(null)
-  const { currentSong, isPlaying, currentTime, volume, actions } = usePlayerStore()
+  const { currentSong, isPlaying, currentTime, volume, isSeeking, actions } = usePlayerStore()
+  
+  // Local state for tracking slider position during seek
+  const [seekTime, setSeekTime] = useState<number>(0)
 
   // On mount, link the audio element ref to the store so actions can control it.
   useEffect(() => {
     actions.setAudioRef(audioRef)
   }, [actions])
 
-  // --- Event handlers now call the simplified store actions ---
-  const handleSeekCommit = (value: number[]): void => actions.seek(value[0])
+  // Update local seek time when currentTime changes (but not when seeking)
+  useEffect(() => {
+    if (!isSeeking) {
+      setSeekTime(currentTime)
+    }
+  }, [currentTime, isSeeking])
+
+  // --- Event handlers ---
+  const handleSeekStart = (): void => {
+    actions.startSeeking()
+  }
+
+  const handleSeekChange = (value: number[]): void => {
+    setSeekTime(value[0])
+  }
+
+  const handleSeekCommit = (value: number[]): void => {
+    actions.seek(value[0])
+  }
+
   const handleVolumeChange = (value: number[]): void => actions.setVolume(value[0])
 
   const PlayPauseButton = (): JSX.Element => (
@@ -152,7 +174,7 @@ export function MusicPlayer(): JSX.Element {
                 variant="ghost"
                 size="icon"
                 className="size-7 rounded-full"
-                onClick={actions.playPrevious} // Corrected action name
+                onClick={actions.playPrevious}
               >
                 <SkipBack className="size-4" />
               </Button>
@@ -161,7 +183,7 @@ export function MusicPlayer(): JSX.Element {
                 variant="ghost"
                 size="icon"
                 className="size-7 rounded-full"
-                onClick={actions.playNext} // Corrected action name
+                onClick={actions.playNext}
               >
                 <SkipForward className="size-4" />
               </Button>
@@ -171,15 +193,17 @@ export function MusicPlayer(): JSX.Element {
             </div>
             <div className="flex w-full items-center gap-2">
               <span className="text-sm font-mono text-muted-foreground tabular-nums">
-                {formatTime(currentTime)}
+                {formatTime(isSeeking ? seekTime : currentTime)}
               </span>
               <Slider
-                value={[currentTime]}
+                value={[isSeeking ? seekTime : currentTime]}
                 max={currentSong.rawDuration || 1}
                 step={0.1}
                 className="w-full"
-                onValueCommit={handleSeekCommit} // Only update on commit
-                disabled={!currentSong}
+                onValueChange={handleSeekChange}
+                onValueCommit={handleSeekCommit}
+                onPointerDown={handleSeekStart}
+                disabled={!currentSong || !currentSong.rawDuration}
               />
               <span className="text-sm font-mono text-muted-foreground tabular-nums">
                 {currentSong.duration}
@@ -195,11 +219,11 @@ export function MusicPlayer(): JSX.Element {
             <div className="flex w-24 items-center gap-2">
               <Volume2 className="size-4" />
               <Slider
-                value={[volume * 100]} // Convert store's 0-1 volume to 0-100 for slider
+                value={[volume * 100]}
                 max={100}
                 step={1}
                 className="w-full"
-                onValueChange={handleVolumeChange} // Use onValueChange for live feedback
+                onValueChange={handleVolumeChange}
               />
             </div>
             <Button variant="ghost" size="icon" className="size-7 rounded-full">

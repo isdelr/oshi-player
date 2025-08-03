@@ -107,17 +107,16 @@ export function TitleBar({ children }: TitleBarProps): JSX.Element {
   )
 
   return (
-    <div className="flex flex-col" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
-      <div className="flex items-center justify-between pl-2">
-        <div className="flex-1" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-          {children}
-        </div>
-        <div
-          className={`window-controls ${platform.startsWith('Win') ? '' : 'pr-2'}`}
-          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-        >
-          {platform.startsWith('Win') ? windowControls : macOsWindowControls}
-        </div>
+    <div
+      className="flex h-16 items-center justify-between"
+      style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+    >
+      <div className="flex-1 pl-2">{children}</div>
+      <div
+        className={`window-controls ${platform.startsWith('Win') ? '' : 'pr-2'}`}
+        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+      >
+        {platform.startsWith('Win') ? windowControls : macOsWindowControls}
       </div>
     </div>
   )

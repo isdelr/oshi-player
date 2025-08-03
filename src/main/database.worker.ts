@@ -142,23 +142,23 @@ class DatabaseService {
     deleteSongsStmt.run(`${path}%`)
   }
 
-  public async scanFolders(folderPaths: string[]): Promise<void> {
+  public scanFolders(folderPaths: string[]) {
     for (const folderPath of folderPaths) {
-      await this.scanDirectory(folderPath)
+      this.scanDirectory(folderPath)
     }
   }
 
   private async scanDirectory(directory: string): Promise<void> {
     try {
-      const files = await readdir(directory)
+      const files = await readdir(directory) // Use async readdir
       for (const file of files) {
         const filePath = path.join(directory, file)
         try {
-          const stats = await stat(filePath)
+          const stats = await stat(filePath) // Use async stat
           if (stats.isDirectory()) {
-            await this.scanDirectory(filePath)
+            await this.scanDirectory(filePath) // await recursive call
           } else if (stats.isFile() && this.isAudioFile(filePath)) {
-            await this.addSong(filePath)
+            await this.addSong(filePath) // await the addSong call
           }
         } catch (error) {
           console.error(`Could not stat file ${filePath}:`, error)
@@ -178,27 +178,27 @@ class DatabaseService {
   private async getEmbeddedArtwork(pictures: mm.IPicture[] | undefined): Promise<string | null> {
     if (!pictures || pictures.length === 0) return null
     const picture = pictures[0]
-    return `data:${picture.format};base64,${picture.data.toString()}`
+    return `data:${picture.format};base64,${picture.data.toString('base64')}`
   }
 
-  public async addSong(filePath: string): Promise<void> {
-    // OPTIMIZATION: Wrap the entire song import process in a single transaction.
-    // This is much faster than running individual INSERT/UPDATE statements,
-    // especially during a large scan. It reduces disk I/O overhead significantly.
-    const addSongTransaction = this.db.transaction(async (fp: string) => {
-      try {
-        const existingSong = this.db.prepare('SELECT id FROM songs WHERE path = ?').get(fp)
-        if (existingSong) return // Skip if song already exists
+  public async addSong(filePath: string) {
+    try {
+      // 1. Perform all async operations *before* the transaction.
+      const existingSong = this.db.prepare('SELECT id FROM songs WHERE path = ?').get(filePath)
+      if (existingSong) return // Skip if song already exists
 
-        const metadata = await mm.parseFile(fp)
-        const { common, format } = metadata
+      const metadata = await mm.parseFile(filePath)
+      const { common, format } = metadata
 
-        if (!format.duration) return // Skip files with no duration
+      if (!format.duration) return // Skip files with no duration
 
-        const artwork = await this.getEmbeddedArtwork(common.picture)
+      const artwork = await this.getEmbeddedArtwork(common.picture)
+      const artistName = common.artist ?? 'Unknown Artist'
+      const albumName = common.album ?? 'Unknown Album'
 
+      // 2. Create a synchronous transaction to perform the database writes.
+      const addSongTransaction = this.db.transaction(() => {
         // Get or insert Artist
-        const artistName = common.artist ?? 'Unknown Artist'
         let artist = this.db.prepare('SELECT id FROM artists WHERE name = ?').get(artistName) as
           | { id: number }
           | undefined
@@ -211,7 +211,6 @@ class DatabaseService {
         const artistId = artist.id
 
         // Get or insert Album
-        const albumName = common.album ?? 'Unknown Album'
         let album = this.db
           .prepare('SELECT id, artworkPath FROM albums WHERE name = ? AND artistId = ?')
           .get(albumName, artistId) as { id: number; artworkPath: string | null } | undefined
@@ -230,13 +229,21 @@ class DatabaseService {
           .prepare(
             'INSERT INTO songs (title, path, duration, albumId, artistId, artworkPath) VALUES (?, ?, ?, ?, ?, ?)'
           )
-          .run(common.title ?? path.basename(fp), fp, format.duration, albumId, artistId, artwork)
-      } catch (error) {
-        console.error(`Error processing file ${fp}:`, error)
-      }
-    })
+          .run(
+            common.title ?? path.basename(filePath),
+            filePath,
+            format.duration,
+            albumId,
+            artistId,
+            artwork
+          )
+      })
 
-    addSongTransaction(filePath)
+      // 3. Run the synchronous transaction.
+      addSongTransaction()
+    } catch (error) {
+      console.error(`Error processing file ${filePath}:`, error)
+    }
   }
 
   private formatDuration(seconds: number | undefined | null): string {
@@ -281,6 +288,73 @@ class DatabaseService {
     return (stmt.all() as any[]).map((a: any) => ({ ...a, id: a.id.toString() }))
   }
 
+  public getAlbum(id: number): Album | null {
+    const stmt = this.db.prepare(`
+      SELECT al.id, al.name, ar.name as artist, al.year, al.artworkPath as artwork
+      FROM albums al
+      JOIN artists ar ON al.artistId = ar.id
+      WHERE al.id = ?
+    `)
+    const album = stmt.get(id) as any
+    return album ? { ...album, id: album.id.toString() } : null
+  }
+
+  public getArtist(id: number): Artist | null {
+    const stmt = this.db.prepare(`
+      SELECT ar.id, ar.name, (SELECT al.artworkPath FROM albums al WHERE al.artistId = ar.id AND al.artworkPath IS NOT NULL LIMIT 1) as artwork
+      FROM artists ar
+      WHERE ar.id = ?
+    `)
+    const artist = stmt.get(id) as any
+    return artist ? { ...artist, id: artist.id.toString() } : null
+  }
+
+  public getSongsByAlbumId(albumId: number): Song[] {
+    const stmt = this.db.prepare(`
+      SELECT s.id, s.title as name, s.path, s.duration as rawDuration, al.name as album, ar.name as artist, COALESCE(s.artworkPath, al.artworkPath) as artwork
+      FROM songs s
+      JOIN albums al ON s.albumId = al.id
+      JOIN artists ar ON s.artistId = ar.id
+      WHERE s.albumId = ?
+      ORDER BY s.id
+    `)
+    return (stmt.all(albumId) as any[]).map((s: any) => ({
+      ...s,
+      id: s.id.toString(),
+      duration: this.formatDuration(s.rawDuration)
+    }))
+  }
+
+  public getAlbumsByArtistId(artistId: number): Album[] {
+    const stmt = this.db.prepare(`
+      SELECT al.id, al.name, ar.name as artist, al.year, al.artworkPath as artwork
+      FROM albums al
+      JOIN artists ar ON al.artistId = ar.id
+      WHERE al.artistId = ?
+      ORDER BY al.year, al.name
+    `)
+    return (stmt.all(artistId) as any[]).map((a: any) => ({
+      ...a,
+      id: a.id.toString()
+    }))
+  }
+
+  public getSongsByArtistId(artistId: number): Song[] {
+    const stmt = this.db.prepare(`
+        SELECT s.id, s.title as name, s.path, s.duration as rawDuration, al.name as album, ar.name as artist, COALESCE(s.artworkPath, al.artworkPath) as artwork
+        FROM songs s
+        JOIN albums al ON s.albumId = al.id
+        JOIN artists ar ON s.artistId = ar.id
+        WHERE s.artistId = ?
+        ORDER BY al.year, al.name, s.id
+    `)
+    return (stmt.all(artistId) as any[]).map((s: any) => ({
+      ...s,
+      id: s.id.toString(),
+      duration: this.formatDuration(s.rawDuration)
+    }))
+  }
+
   public close(): void {
     this.db.close()
   }
@@ -320,6 +394,21 @@ parentPort?.on('message', async (msg: { type: string; payload?: any; id: number 
         break
       case 'get-artists':
         result = db.getArtists()
+        break
+      case 'get-album':
+        result = db.getAlbum(Number(msg.payload))
+        break
+      case 'get-artist':
+        result = db.getArtist(Number(msg.payload))
+        break
+      case 'get-songs-by-album-id':
+        result = db.getSongsByAlbumId(Number(msg.payload))
+        break
+      case 'get-albums-by-artist-id':
+        result = db.getAlbumsByArtistId(Number(msg.payload))
+        break
+      case 'get-songs-by-artist-id':
+        result = db.getSongsByArtistId(Number(msg.payload))
         break
       case 'close':
         result = db.close()
