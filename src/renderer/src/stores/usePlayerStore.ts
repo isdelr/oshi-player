@@ -1,6 +1,6 @@
 // src/renderer/src/stores/usePlayerStore.ts
 import { create } from 'zustand'
-import { Song } from './useLibraryStore'
+import { Song, useLibraryStore } from './useLibraryStore'
 import React from 'react'
 
 // Define the shape of the currently playing song, including its playback state
@@ -10,7 +10,6 @@ interface CurrentSongDetails extends Song {
 }
 
 // Keep a reference to the audio element outside the store's state
-// This prevents re-renders every time the ref is set, which is crucial for performance.
 let audioRef: React.RefObject<HTMLAudioElement | null> | null = null
 
 interface PlayerState {
@@ -21,18 +20,16 @@ interface PlayerState {
   volume: number
   isSeeking: boolean
   currentIndex: number | null
+  playlistSource: 'library' | 'album' | 'artist' | 'other' // To track where the music is from
   actions: {
-    // --- Public API for Components ---
     setAudioRef: (ref: React.RefObject<HTMLAudioElement | null>) => void
-    playSong: (songs: Song[], index: number) => void
+    playSong: (songs: Song[], index: number, source?: PlayerState['playlistSource']) => void
     togglePlayPause: () => void
     playNext: () => void
     playPrevious: () => void
     startSeeking: () => void
     seek: (time: number) => void
-    setVolume: (volumeLevel: number) => void // Accepts 0-100
-
-    // --- Internal API for <audio> element events ---
+    setVolume: (volumeLevel: number) => void
     _handlePlay: () => void
     _handlePause: () => void
     _handleTimeUpdate: (e: React.SyntheticEvent<HTMLAudioElement>) => void
@@ -44,46 +41,51 @@ interface PlayerState {
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
-  // --- Initial State ---
   playlist: [],
   currentSong: null,
   isPlaying: false,
   currentTime: 0,
-  volume: 1, // Stored as 0-1 for the <audio> element
+  volume: 1,
   isSeeking: false,
   currentIndex: null,
+  playlistSource: 'other',
 
-  // --- Actions ---
   actions: {
     setAudioRef: (ref) => {
       audioRef = ref
     },
 
-    playSong: async (songs, index) => {
+    playSong: async (songs, index, source = 'other') => {
       if (!audioRef?.current) return
       const newSong = songs[index]
       if (!newSong) return
 
-      const formattedPath = `safe-file://${newSong.path}`
-      const audioBlob = await fetch(formattedPath)
+      try {
+        const formattedPath = `safe-file://${newSong.path}`
+        const audioBlob = await fetch(formattedPath)
 
-      const audioUrl = URL.createObjectURL(await audioBlob.blob())
-      audioRef.current.src = audioUrl
+        const audioUrl = URL.createObjectURL(await audioBlob.blob())
+        // Clean up previous blob URL to prevent memory leaks
+        if (audioRef.current.src) {
+          URL.revokeObjectURL(audioRef.current.src)
+        }
+        audioRef.current.src = audioUrl
 
-      set({
-        playlist: songs,
-        currentIndex: index,
-        currentSong: { ...newSong, isPlaying: true, currentTime: 0 },
-        isPlaying: true,
-        currentTime: 0,
-        isSeeking: false // Reset seeking state when playing new song
-      })
+        set({
+          playlist: songs,
+          currentIndex: index,
+          currentSong: { ...newSong, isPlaying: true, currentTime: 0 },
+          isPlaying: true,
+          currentTime: 0,
+          isSeeking: false,
+          playlistSource: source // Track the source of the playlist
+        })
 
-      // Play the audio
-      audioRef.current.play().catch((e) => {
+        await audioRef.current.play()
+      } catch (e) {
         console.error('Error playing audio:', e)
-        set({ isPlaying: false }) // Revert playing state if an error occurs
-      })
+        set({ isPlaying: false })
+      }
     },
 
     togglePlayPause: () => {
@@ -95,54 +97,72 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       } else {
         audioRef.current.play().catch(console.error)
       }
-      // The actual `isPlaying` state is updated by the _handlePlay/_handlePause events
     },
 
     playNext: () => {
       const { playlist, currentIndex } = get()
-      if (currentIndex === null || currentIndex >= playlist.length - 1) return
-      get().actions.playSong(playlist, currentIndex + 1)
+      const isLastSong = currentIndex === null || currentIndex >= playlist.length - 1
+
+      // If it's the last song and the playlist came from the main library, try to load more.
+      if (isLastSong && get().playlistSource === 'library' && useLibraryStore.getState().hasMoreSongs) {
+        useLibraryStore.getState().actions.loadMoreSongs().then(() => {
+            const updatedPlaylist = useLibraryStore.getState().songs
+            const nextIndex = (get().currentIndex ?? -1) + 1
+            if(nextIndex < updatedPlaylist.length) {
+                get().actions.playSong(updatedPlaylist, nextIndex, 'library')
+            }
+        })
+      } else if (!isLastSong) {
+          get().actions.playSong(playlist, (currentIndex ?? -1) + 1, get().playlistSource)
+      }
     },
 
     playPrevious: () => {
       const { playlist, currentIndex } = get()
       if (currentIndex === null || currentIndex <= 0) return
-      get().actions.playSong(playlist, currentIndex - 1)
+      get().actions.playSong(playlist, currentIndex - 1, get().playlistSource)
     },
 
-    startSeeking: () => {
-      set({ isSeeking: true })
-    },
-
+    startSeeking: () => set({ isSeeking: true }),
     seek: (time) => {
       if (audioRef?.current) {
-        // Don't update isSeeking here - let the 'seeked' event handle it
         audioRef.current.currentTime = time
       }
     },
-
     setVolume: (volumeLevel) => {
       const newVolume = Math.max(0, Math.min(1, volumeLevel / 100))
       if (audioRef?.current) {
         audioRef.current.volume = newVolume
       }
-      set({ volume: newVolume }) // Also update state for immediate UI feedback
+      set({ volume: newVolume })
     },
-
-    // --- Internal Event Handlers ---
-
     _handlePlay: () => set({ isPlaying: true }),
     _handlePause: () => set({ isPlaying: false }),
-
     _handleTimeUpdate: (e) => {
-      // Only update time if the user is not actively dragging the slider
       if (!get().isSeeking) {
         set({ currentTime: e.currentTarget.currentTime })
+      }
+
+      const {
+        currentIndex,
+        playlistSource,
+      } = get()
+      const { hasMoreSongs, isLoadingMoreSongs, actions: libraryActions } = useLibraryStore.getState()
+      
+      // Proactive loading only if playing from the main library view
+      if (playlistSource === 'library' && currentIndex !== null && hasMoreSongs && !isLoadingMoreSongs) {
+        const songsRemaining = useLibraryStore.getState().songs.length - 1 - currentIndex
+        if (songsRemaining < 5) {
+            libraryActions.loadMoreSongs().then(() => {
+                // After loading, update the player's playlist to match the new, longer list
+                const newPlaylist = useLibraryStore.getState().songs
+                set({ playlist: newPlaylist })
+            })
+        }
       }
     },
 
     _handleLoadedData: (e) => {
-      // Apply the stored volume when a new track loads
       e.currentTarget.volume = get().volume
       set((state) => ({
         currentSong: state.currentSong
@@ -151,16 +171,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       }))
     },
 
-    _handleEnded: () => {
-      get().actions.playNext()
-    },
-
-    _handleVolumeChange: (e) => {
-      set({ volume: e.currentTarget.volume })
-    },
-
+    _handleEnded: () => get().actions.playNext(),
+    _handleVolumeChange: (e) => set({ volume: e.currentTarget.volume }),
     _handleSeeked: (e) => {
-      // When seeking is finished, update the state and allow time updates again
       set({
         isSeeking: false,
         currentTime: e.currentTarget.currentTime

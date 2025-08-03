@@ -17,6 +17,8 @@ export const Route = createFileRoute('/artist/$artistId')({
       throw notFound()
     }
     const albums = await window.api.getAlbumsByArtistId(params.artistId)
+    // For artist page, we can load all songs as they might not be excessively long lists
+    // If you expect artists with thousands of songs, this would need pagination too.
     const songs = await window.api.getSongsByArtistId(params.artistId)
     return { artist, albums, songs }
   }
@@ -27,7 +29,6 @@ function ArtistView(): JSX.Element {
   const playerActions = usePlayerStore((s) => s.actions)
 
   const handlePlayArtistTop = () => {
-    // For local app, just playing all songs is fine.
     if (songs.length > 0) {
       playerActions.playSong(songs, 0)
     }
@@ -67,7 +68,6 @@ function ArtistView(): JSX.Element {
           </Button>
         </div>
 
-        {/* Albums */}
         {albums.length > 0 && (
           <div className="mb-12">
             <h2 className="mb-4 text-2xl font-bold tracking-tight text-foreground">Albums</h2>
@@ -94,13 +94,11 @@ function ArtistView(): JSX.Element {
                           onClick={(e) => {
                             e.preventDefault()
                             e.stopPropagation()
-                            window.api
-                              .getSongsByAlbumId(album.id)
-                              .then((albumSongs) => {
-                                if (albumSongs.length > 0) {
-                                  playerActions.playSong(albumSongs, 0)
-                                }
-                              })
+                            window.api.getSongsByAlbumId(album.id).then((albumSongs) => {
+                              if (albumSongs.length > 0) {
+                                playerActions.playSong(albumSongs, 0)
+                              }
+                            })
                           }}
                         >
                           <Play className="size-6 fill-current" />
@@ -118,11 +116,10 @@ function ArtistView(): JSX.Element {
           </div>
         )}
 
-        {/* All Songs */}
         {songs.length > 0 && (
           <div className="mb-12">
             <h2 className="mb-4 text-2xl font-bold tracking-tight text-foreground">All Songs</h2>
-            <SongList songs={songs} showAlbumColumn={true} />
+            <SongList songs={songs} showAlbumColumn={true} containerClassName="h-auto" />
           </div>
         )}
       </div>

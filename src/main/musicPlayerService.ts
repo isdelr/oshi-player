@@ -16,9 +16,11 @@ export class MusicPlayerService {
     return MusicPlayerService.instance
   }
 
-  // This is now just a proxy to the database service
   public async loadSongs(): Promise<void> {
-    await this.databaseService.getSongs()
+    await this.databaseService.getSongs({
+      limit: 50,
+      offset: 0
+    })
   }
 
 }

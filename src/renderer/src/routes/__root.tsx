@@ -1,5 +1,5 @@
 // src/renderer/src/routes/__root.tsx
-import { createRootRoute, Outlet, Link} from '@tanstack/react-router'
+import { createRootRoute, Outlet, Link } from '@tanstack/react-router'
 // import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { LeftSidebar } from '@renderer/components/LeftSidebar'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@renderer/components/ui/sidebar'
@@ -93,7 +93,7 @@ function RootLayout(): JSX.Element {
                   </div>
                 </div>
               </TitleBar>
-              <main className="flex-1 p-8">
+              <main className="flex-1 overflow-hidden p-8">
                 <Outlet />
               </main>
             </SidebarInset>

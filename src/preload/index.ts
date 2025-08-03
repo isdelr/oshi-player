@@ -29,7 +29,9 @@ const api = {
   scanFolders: (): Promise<void> => ipcRenderer.invoke('scan-folders'),
 
   // Library Data
-  getSongs: (): Promise<any[]> => ipcRenderer.invoke('get-songs'),
+  getSongs: (payload: { limit: number; offset: number }): Promise<any[]> =>
+    ipcRenderer.invoke('get-songs', payload),
+  getSongsCount: (): Promise<number> => ipcRenderer.invoke('get-songs-count'),
   getAlbums: (): Promise<any[]> => ipcRenderer.invoke('get-albums'),
   getArtists: (): Promise<any[]> => ipcRenderer.invoke('get-artists'),
   getAlbum: (id: string): Promise<any> => ipcRenderer.invoke('get-album', id),

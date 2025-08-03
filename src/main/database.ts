@@ -29,6 +29,11 @@ export interface Artist {
   artwork: string
 }
 
+export interface GetSongsPayload {
+  limit: number
+  offset: number
+}
+
 export class DatabaseService {
   private static instance: DatabaseService
   private worker: Worker
@@ -123,8 +128,12 @@ export class DatabaseService {
     return this.sendCommand('scan-folders', folderPaths)
   }
 
-  public getSongs(): Promise<Song[]> {
-    return this.sendCommand('get-songs')
+  public getSongs(payload: GetSongsPayload): Promise<Song[]> {
+    return this.sendCommand('get-songs', payload)
+  }
+
+  public getSongsCount(): Promise<number> {
+    return this.sendCommand('get-songs-count')
   }
 
   public getAlbums(): Promise<Album[]> {

@@ -3,7 +3,6 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 import { JSX } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar'
 import { Button } from '@renderer/components/ui/button'
-import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { Heart, Play, Plus, Dot, Mic2, Calendar } from 'lucide-react'
 import { SongList } from '@renderer/components/SongList'
 import { usePlayerStore } from '@renderer/stores/usePlayerStore'
@@ -33,9 +32,9 @@ function AlbumView(): JSX.Element {
   }
 
   return (
-    <div className="h-full w-full">
+    <div className="h-full w-full flex flex-col">
       {/* Album Header */}
-      <div className="flex flex-col md:flex-row items-start gap-8 mb-8">
+      <div className="flex flex-col md:flex-row items-start gap-8 mb-8 shrink-0">
         <Avatar className="size-48 rounded-lg shadow-lg album-art">
           <AvatarImage src={album.artwork} className="object-cover" />
           <AvatarFallback className="rounded-lg text-5xl font-bold bg-muted">
@@ -84,10 +83,10 @@ function AlbumView(): JSX.Element {
         </div>
       </div>
 
-      {/* Songs Table */}
-      <ScrollArea className="h-[calc(100vh-24rem)] custom-scrollbar">
+      {/* Songs Table Container */}
+      <div className="flex-1 min-h-0">
         <SongList songs={songs} showAlbumColumn={false} />
-      </ScrollArea>
+      </div>
     </div>
   )
 }

@@ -26,6 +26,11 @@ export interface Artist {
   artwork: string
 }
 
+export interface GetSongsPayload {
+  limit: number
+  offset: number
+}
+
 export interface IElectronAPI {
   // Window
   minimize: () => void
@@ -44,7 +49,8 @@ export interface IElectronAPI {
   scanFolders: () => Promise<void>
 
   // Library Data
-  getSongs: () => Promise<Song[]>
+  getSongs: (payload: GetSongsPayload) => Promise<Song[]>
+  getSongsCount: () => Promise<number>
   getAlbums: () => Promise<Album[]>
   getArtists: () => Promise<Artist[]>
   getAlbum: (id: string) => Promise<Album | null>

@@ -95,8 +95,8 @@ app.whenReady().then(async () => {
 
       const response = await net.fetch(fileUrl, { headers: request.headers })
       return response
-    } catch (error) {
-      console.error(`💥 Protocol handler error for URL ${request.url}:`, error)
+    } catch (error: unknown) {
+      if (!(error instanceof Error)) return new Response('Internal Server Error', { status: 500 })
 
       if (error.message.includes('ERR_FILE_NOT_FOUND')) {
         return new Response('File Not Found', { status: 404 })
@@ -104,6 +104,7 @@ app.whenReady().then(async () => {
       if (error.message.includes('ERR_ACCESS_DENIED')) {
         return new Response('Access Denied', { status: 403 })
       }
+      
       return new Response('Internal Server Error', { status: 500 })
     }
   })
@@ -114,8 +115,7 @@ app.whenReady().then(async () => {
 
   // Initialize Services
   const dbService = DatabaseService.getInstance()
-  const musicPlayerService = MusicPlayerService.getInstance()
-  await musicPlayerService.loadSongs()
+  MusicPlayerService.getInstance()
 
   // IPC Window Controls
   ipcMain.on('minimize-window', (event) => {
@@ -168,12 +168,15 @@ app.whenReady().then(async () => {
     const folders = await dbService.getMusicDirectories()
     if (folders.length > 0) {
       await dbService.scanFolders(folders)
-      await musicPlayerService.loadSongs()
     }
   })
 
-  ipcMain.handle('get-songs', async () => {
-    return await dbService.getSongs()
+  ipcMain.handle('get-songs', async (_, payload: { limit: number; offset: number }) => {
+    return await dbService.getSongs(payload)
+  })
+
+  ipcMain.handle('get-songs-count', async () => {
+    return await dbService.getSongsCount()
   })
 
   ipcMain.handle('get-albums', async () => {

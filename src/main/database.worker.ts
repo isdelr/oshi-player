@@ -33,6 +33,11 @@ export interface Artist {
   artwork: string
 }
 
+export interface GetSongsPayload {
+  limit: number
+  offset: number
+}
+
 const dbPath = workerData.dbPath
 
 class DatabaseService {
@@ -136,29 +141,81 @@ class DatabaseService {
   }
 
   public removeMusicDirectory(path: string): void {
-    const stmt = this.db.prepare('DELETE FROM music_directories WHERE path = ?')
-    stmt.run(path)
-    const deleteSongsStmt = this.db.prepare('DELETE FROM songs WHERE path LIKE ?')
-    deleteSongsStmt.run(`${path}%`)
+    const transaction = this.db.transaction(() => {
+      this.db.prepare('DELETE FROM music_directories WHERE path = ?').run(path)
+      this.db.prepare('DELETE FROM songs WHERE path LIKE ?').run(`${path}%`)
+      this._cleanupOrphans()
+    })
+    transaction()
   }
 
-  public scanFolders(folderPaths: string[]) {
+  public async scanFolders(folderPaths: string[]): Promise<void> {
+    // 1. Get all file paths from the filesystem that we are supposed to scan
+    const foundFilePaths = new Set<string>()
     for (const folderPath of folderPaths) {
-      this.scanDirectory(folderPath)
+      await this.findAllAudioFiles(folderPath, foundFilePaths)
+    }
+
+    // 2. Get all song paths currently in the database for the scanned folders
+    const existingFilePaths = new Set<string>()
+    const getSongsInDirectoryStmt = this.db.prepare('SELECT path FROM songs WHERE path LIKE ?')
+    for (const folderPath of folderPaths) {
+      const songsInDir = getSongsInDirectoryStmt.all(`${folderPath}%`) as { path: string }[]
+      songsInDir.forEach((s) => existingFilePaths.add(s.path))
+    }
+
+    // 3. Determine what's new and what's gone
+    const pathsToAdd = [...foundFilePaths].filter((p) => !existingFilePaths.has(p))
+    const pathsToDelete = [...existingFilePaths].filter((p) => !foundFilePaths.has(p))
+
+    // 4. Process new songs
+    for (const filePath of pathsToAdd) {
+      await this.addSong(filePath) // addSong is already transactional and safe
+    }
+
+    // 5. Clean up old entries in a transaction
+    if (pathsToDelete.length > 0) {
+      this.cleanupSongs(pathsToDelete)
     }
   }
 
-  private async scanDirectory(directory: string): Promise<void> {
+  private cleanupSongs(pathsToDelete: string[]): void {
+    const cleanupTransaction = this.db.transaction(() => {
+      const deleteSongStmt = this.db.prepare('DELETE FROM songs WHERE path = ?')
+      for (const path of pathsToDelete) {
+        deleteSongStmt.run(path)
+      }
+      this._cleanupOrphans()
+    })
+
+    cleanupTransaction()
+  }
+
+  private _cleanupOrphans(): void {
+    // Clean up orphan albums
+    this.db.exec(`
+      DELETE FROM albums
+      WHERE id NOT IN (SELECT DISTINCT albumId FROM songs WHERE albumId IS NOT NULL)
+    `)
+
+    // Clean up orphan artists
+    this.db.exec(`
+      DELETE FROM artists
+      WHERE id NOT IN (SELECT DISTINCT artistId FROM songs WHERE artistId IS NOT NULL)
+    `)
+  }
+
+  private async findAllAudioFiles(directory: string, fileList: Set<string>): Promise<void> {
     try {
-      const files = await readdir(directory) // Use async readdir
+      const files = await readdir(directory)
       for (const file of files) {
         const filePath = path.join(directory, file)
         try {
-          const stats = await stat(filePath) // Use async stat
+          const stats = await stat(filePath)
           if (stats.isDirectory()) {
-            await this.scanDirectory(filePath) // await recursive call
+            await this.findAllAudioFiles(filePath, fileList) // recursive call
           } else if (stats.isFile() && this.isAudioFile(filePath)) {
-            await this.addSong(filePath) // await the addSong call
+            fileList.add(filePath)
           }
         } catch (error) {
           console.error(`Could not stat file ${filePath}:`, error)
@@ -178,7 +235,7 @@ class DatabaseService {
   private async getEmbeddedArtwork(pictures: mm.IPicture[] | undefined): Promise<string | null> {
     if (!pictures || pictures.length === 0) return null
     const picture = pictures[0]
-    return `data:${picture.format};base64,${picture.data.toString('base64')}`
+    return `data:${picture.format};base64,${picture.data.toString()}`
   }
 
   public async addSong(filePath: string) {
@@ -254,19 +311,27 @@ class DatabaseService {
     return `${min}:${sec < 10 ? '0' : ''}${sec}`
   }
 
-  public getSongs(): Song[] {
+  public getSongs(payload: GetSongsPayload): Song[] {
+    const { limit, offset } = payload
     const stmt = this.db.prepare(`
       SELECT s.id, s.title as name, s.path, s.duration as rawDuration, al.name as album, ar.name as artist, COALESCE(s.artworkPath, al.artworkPath) as artwork
       FROM songs s
       JOIN albums al ON s.albumId = al.id
       JOIN artists ar ON s.artistId = ar.id
       ORDER BY ar.name, al.name, s.id
+      LIMIT ? OFFSET ?
     `)
-    return (stmt.all() as any[]).map((s: any) => ({
+    return (stmt.all(limit, offset) as any[]).map((s: any) => ({
       ...s,
       id: s.id.toString(),
       duration: this.formatDuration(s.rawDuration)
     }))
+  }
+
+  public getSongsCount(): number {
+    const stmt = this.db.prepare('SELECT COUNT(*) as count FROM songs')
+    const result = stmt.get() as { count: number }
+    return result.count
   }
 
   public getAlbums(): Album[] {
@@ -387,7 +452,10 @@ parentPort?.on('message', async (msg: { type: string; payload?: any; id: number 
         result = await db.scanFolders(msg.payload)
         break
       case 'get-songs':
-        result = db.getSongs()
+        result = db.getSongs(msg.payload)
+        break
+      case 'get-songs-count':
+        result = db.getSongsCount()
         break
       case 'get-albums':
         result = db.getAlbums()

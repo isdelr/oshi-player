@@ -515,6 +515,5 @@
 
   body {
     @apply text-foreground;
-        @apply overflow-hidden;
   }
 }
