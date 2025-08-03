@@ -1,42 +1,49 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Professional dark base colors */
-  --background: linear-gradient(135deg, #0a0a0b 0%, #111114 25%, #1a1a1d 50%, #212125 75%, #2a2a2f 100%);
-  --background-solid: #0a0a0b;
-  --foreground: #e4e4e7;
+  /* Professional light base colors - warm whites and soft grays */
+  --background: linear-gradient(
+    135deg,
+    #fefefe 0%,
+    #f8f9fa 25%,
+    #f1f3f4 50%,
+    #e8eaed 75%,
+    #e1e3e6 100%
+  );
+  --background-solid: #fefefe;
+  --foreground: #1f2937;
 
   /* Card styling with subtle glassmorphism */
-  --card: rgba(17, 17, 20, 0.8);
-  --card-foreground: #e4e4e7;
-  --card-border: rgba(39, 39, 42, 0.6);
+  --card: rgba(255, 255, 255, 0.85);
+  --card-foreground: #1f2937;
+  --card-border: rgba(209, 213, 219, 0.8);
 
   /* Popover styling */
-  --popover: rgba(9, 9, 11, 0.95);
-  --popover-foreground: #e4e4e7;
+  --popover: rgba(255, 255, 255, 0.98);
+  --popover-foreground: #1f2937;
 
   /* Primary colors - professional blue */
-  --primary: #3b82f6;
+  --primary: #2563eb;
   --primary-foreground: #ffffff;
-  --primary-hover: #2563eb;
-  --primary-glow: rgba(59, 130, 246, 0.25);
+  --primary-hover: #1d4ed8;
+  --primary-glow: rgba(37, 99, 235, 0.15);
 
-  /* Secondary colors - muted grays */
-  --secondary: rgba(39, 39, 42, 0.7);
-  --secondary-foreground: #d4d4d8;
-  --secondary-hover: rgba(52, 52, 57, 0.8);
+  /* Secondary colors - light grays */
+  --secondary: rgba(243, 244, 246, 0.8);
+  --secondary-foreground: #374151;
+  --secondary-hover: rgba(229, 231, 235, 0.9);
 
   /* Muted colors */
-  --muted: rgba(39, 39, 42, 0.5);
-  --muted-foreground: #a1a1aa;
+  --muted: rgba(249, 250, 251, 0.7);
+  --muted-foreground: #6b7280;
 
   /* Accent colors - subtle highlights */
-  --accent: rgba(63, 63, 70, 0.4);
-  --accent-foreground: #e4e4e7;
-  --accent-hover: rgba(82, 82, 91, 0.5);
+  --accent: rgba(243, 244, 246, 0.6);
+  --accent-foreground: #1f2937;
+  --accent-hover: rgba(229, 231, 235, 0.7);
 
   /* Destructive colors */
   --destructive: #dc2626;
@@ -51,42 +58,49 @@
   --warning-foreground: #ffffff;
 
   /* Border and input */
-  --border: rgba(63, 63, 70, 0.4);
-  --input: rgba(24, 24, 27, 0.8);
-  --ring: rgba(59, 130, 246, 0.4);
+  --border: rgba(209, 213, 219, 0.6);
+  --input: rgba(255, 255, 255, 0.9);
+  --ring: rgba(37, 99, 235, 0.3);
 
   /* Chart colors - professional palette */
-  --chart-1: #3b82f6;
-  --chart-2: #8b5cf6;
-  --chart-3: #06b6d4;
-  --chart-4: #10b981;
-  --chart-5: #f59e0b;
+  --chart-1: #2563eb;
+  --chart-2: #7c3aed;
+  --chart-3: #0891b2;
+  --chart-4: #059669;
+  --chart-5: #ea580c;
 
   --radius: 0.5rem;
 
   /* Sidebar colors */
-  --sidebar: rgba(9, 9, 11, 0.95);
-  --sidebar-foreground: #e4e4e7;
-  --sidebar-primary: #3b82f6;
+  --sidebar: rgba(255, 255, 255, 0.95);
+  --sidebar-foreground: #1f2937;
+  --sidebar-primary: #2563eb;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: rgba(39, 39, 42, 0.6);
-  --sidebar-accent-foreground: #d4d4d8;
-  --sidebar-border: rgba(39, 39, 42, 0.4);
-  --sidebar-ring: rgba(59, 130, 246, 0.4);
+  --sidebar-accent: rgba(243, 244, 246, 0.7);
+  --sidebar-accent-foreground: #374151;
+  --sidebar-border: rgba(209, 213, 219, 0.5);
+  --sidebar-ring: rgba(37, 99, 235, 0.3);
 
   /* Music player specific variables */
-  --player-background: rgba(9, 9, 11, 0.98);
-  --player-glass: rgba(24, 24, 27, 0.8);
-  --progress-track: rgba(63, 63, 70, 0.3);
-  --progress-fill: #3b82f6;
-  --control-button: rgba(39, 39, 42, 0.6);
-  --control-button-hover: rgba(52, 52, 57, 0.8);
-  --volume-slider: rgba(63, 63, 70, 0.4);
+  --player-background: rgba(255, 255, 255, 0.98);
+  --player-glass: rgba(248, 250, 252, 0.9);
+  --progress-track: rgba(209, 213, 219, 0.4);
+  --progress-fill: #2563eb;
+  --control-button: rgba(243, 244, 246, 0.8);
+  --control-button-hover: rgba(229, 231, 235, 0.9);
+  --volume-slider: rgba(209, 213, 219, 0.5);
 }
 
 .dark {
   /* Enhanced dark mode with professional depth */
-  --background: linear-gradient(135deg, #000000 0%, #0a0a0b 25%, #111114 50%, #1a1a1d 75%, #212125 100%);
+  --background: linear-gradient(
+    135deg,
+    #000000 0%,
+    #0a0a0b 25%,
+    #111114 50%,
+    #1a1a1d 75%,
+    #212125 100%
+  );
   --background-solid: #000000;
   --foreground: #fafafa;
 
@@ -183,7 +197,8 @@
     background: var(--background);
     color: var(--foreground);
     min-height: 100vh;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family:
+      -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   }
 
   /* Professional glassmorphism with subtle effects */
@@ -207,7 +222,14 @@
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border: 1px solid var(--card-border);
-    box-shadow: 
+    box-shadow:
+      0 20px 40px -12px rgba(0, 0, 0, 0.1),
+      0 0 0 1px var(--card-border),
+      inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  }
+
+  .dark .music-player {
+    box-shadow:
       0 20px 40px -12px rgba(0, 0, 0, 0.4),
       0 0 0 1px var(--card-border),
       inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -224,8 +246,16 @@
   .music-card:hover {
     background: var(--secondary-hover);
     border-color: var(--border);
-    box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.3);
     transform: translateY(-1px);
+  }
+
+  /* Light mode specific shadow */
+  .music-card:hover {
+    box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.08);
+  }
+
+  .dark .music-card:hover {
+    box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.3);
   }
 
   .control-button {
@@ -245,18 +275,35 @@
 
   .play-button {
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
-    box-shadow: 
+    box-shadow:
+      0 8px 16px rgba(37, 99, 235, 0.15),
+      0 0 0 1px var(--primary),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .dark .play-button {
+    box-shadow:
       0 8px 16px rgba(59, 130, 246, 0.2),
       0 0 0 1px var(--primary),
       inset 0 1px 0 rgba(255, 255, 255, 0.1);
   }
 
   .play-button:hover {
-    box-shadow: 
+    transform: scale(1.05);
+  }
+
+  .play-button:hover {
+    box-shadow:
+      0 12px 24px rgba(37, 99, 235, 0.2),
+      0 0 0 1px var(--primary),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .dark .play-button:hover {
+    box-shadow:
       0 12px 24px rgba(59, 130, 246, 0.3),
       0 0 0 1px var(--primary),
       inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    transform: scale(1.05);
   }
 
   .progress-bar {
@@ -279,16 +326,37 @@
 
   .album-art {
     border-radius: var(--radius-lg);
-    box-shadow: 
+    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  /* Light mode album art shadow */
+  .album-art {
+    box-shadow:
+      0 20px 40px -12px rgba(0, 0, 0, 0.15),
+      0 0 0 1px var(--card-border),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+
+  .dark .album-art {
+    box-shadow:
       0 20px 40px -12px rgba(0, 0, 0, 0.5),
       0 0 0 1px var(--card-border),
       inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
   }
 
   .album-art:hover {
     transform: scale(1.01);
-    box-shadow: 
+  }
+
+  .album-art:hover {
+    box-shadow:
+      0 28px 56px -12px rgba(0, 0, 0, 0.2),
+      0 0 0 1px var(--border),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+
+  .dark .album-art:hover {
+    box-shadow:
       0 28px 56px -12px rgba(0, 0, 0, 0.6),
       0 0 0 1px var(--border),
       inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -320,11 +388,14 @@
   }
 
   @keyframes pulse-glow {
-    0%, 100% {
+    0%,
+    100% {
       box-shadow: 0 0 12px var(--primary-glow);
     }
     50% {
-      box-shadow: 0 0 20px var(--primary-glow), 0 0 32px var(--primary-glow);
+      box-shadow:
+        0 0 20px var(--primary-glow),
+        0 0 32px var(--primary-glow);
     }
   }
 
@@ -333,28 +404,12 @@
   }
 
   @keyframes wave {
-    0% { transform: scaleY(1); }
-    100% { transform: scaleY(0.4); }
-  }
-
-  /* Professional scrollbar styling */
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: var(--muted);
-    border-radius: 2px;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: var(--primary);
-    border-radius: 2px;
-    transition: background 0.3s ease;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: var(--primary-hover);
+    0% {
+      transform: scaleY(1);
+    }
+    100% {
+      transform: scaleY(0.4);
+    }
   }
 
   /* Utility classes for professional UI states */
@@ -388,6 +443,14 @@
 
   .btn-destructive:hover {
     background: #b91c1c;
+  }
+
+  /* Light mode destructive button shadow */
+  .btn-destructive:hover {
+    box-shadow: 0 0 12px rgba(220, 38, 38, 0.2);
+  }
+
+  .dark .btn-destructive:hover {
     box-shadow: 0 0 12px rgba(220, 38, 38, 0.3);
   }
 
@@ -399,6 +462,14 @@
 
   .btn-success:hover {
     background: #047857;
+  }
+
+  /* Light mode success button shadow */
+  .btn-success:hover {
+    box-shadow: 0 0 12px rgba(5, 150, 105, 0.2);
+  }
+
+  .dark .btn-success:hover {
     box-shadow: 0 0 12px rgba(5, 150, 105, 0.3);
   }
 }
@@ -406,8 +477,44 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    @apply scroll-smooth;
   }
+  /* Professional scrollbar styling - Chromium/Electron optimized */
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* Light mode scrollbar */
+  *::-webkit-scrollbar-thumb {
+    background: rgba(107, 114, 128, 0.3); /* Subtle gray for light mode */
+    border-radius: 3px;
+    transition: all 0.2s ease;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: rgba(107, 114, 128, 0.5);
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* Dark mode scrollbar */
+  .dark *::-webkit-scrollbar-thumb {
+    background: rgba(113, 113, 122, 0.25);
+  }
+
+  .dark *::-webkit-scrollbar-thumb:hover {
+    background: rgba(113, 113, 122, 0.4);
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+        @apply overflow-hidden;
   }
 }

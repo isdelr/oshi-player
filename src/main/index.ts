@@ -1,20 +1,39 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, screen, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { DatabaseService } from './database'
+import { MusicPlayerService } from './musicPlayerService'
 
 function createWindow(): void {
   // Create the browser window.
+  const { width, height } = screen.getPrimaryDisplay().workAreaSize
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: Math.floor(width * 0.8),
+    height: Math.floor(height * 0.8),
+    minWidth: 900,
+    minHeight: 670,
     show: false,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
+    // Frameless Window
+    frame: false,
+    titleBarStyle: 'hidden',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      // Enable nodeIntegration to allow the `howler` package to work in the renderer
+      nodeIntegration: true,
+      contextIsolation: false
     }
+  })
+
+  mainWindow.on('maximize', () => {
+    mainWindow.webContents.send('window-state-change', true)
+  })
+
+  mainWindow.on('unmaximize', () => {
+    mainWindow.webContents.send('window-state-change', false)
   })
 
   mainWindow.on('ready-to-show', () => {
@@ -38,7 +57,7 @@ function createWindow(): void {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.oshi')
 
@@ -49,8 +68,114 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
+  // Initialize Services
+  const dbService = DatabaseService.getInstance()
+  const musicPlayerService = MusicPlayerService.getInstance()
+  await musicPlayerService.loadSongs()
+
+  // IPC Window Controls
+  ipcMain.on('minimize-window', (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    window?.minimize()
+  })
+
+  ipcMain.on('maximize-window', (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (window?.isMaximized()) {
+      window?.unmaximize()
+    } else {
+      window?.maximize()
+    }
+  })
+
+  ipcMain.on('close-window', (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    window?.close()
+  })
+
+  // IPC for Settings
+  ipcMain.handle('get-setting', (_, key) => {
+    return dbService.getSetting(key)
+  })
+
+  ipcMain.handle('set-setting', (_, key, value) => {
+    dbService.setSetting(key, value)
+  })
+
+  // IPC for Library Management
+  ipcMain.handle('get-music-directories', () => {
+    return dbService.getMusicDirectories()
+  })
+
+  ipcMain.handle('add-music-directory', async (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    if (!window) return false
+
+    const result = await dialog.showOpenDialog(window, {
+      properties: ['openDirectory']
+    })
+
+    if (!result.canceled && result.filePaths.length > 0) {
+      const path = result.filePaths[0]
+      dbService.addMusicDirectory(path)
+      return true // Indicate success
+    }
+    return false // Indicate cancellation
+  })
+
+  ipcMain.handle('remove-music-directory', async (_, path) => {
+    dbService.removeMusicDirectory(path)
+  })
+
+  ipcMain.handle('scan-folders', async () => {
+    const folders = dbService.getMusicDirectories()
+    if (folders.length > 0) {
+      await dbService.scanFolders(folders)
+      await musicPlayerService.loadSongs()
+    }
+  })
+
+  // IPC for Data Retrieval
+  ipcMain.handle('get-songs', () => {
+    return dbService.getSongs()
+  })
+
+  ipcMain.handle('get-albums', () => {
+    return dbService.getAlbums()
+  })
+
+  ipcMain.handle('get-artists', () => {
+    return dbService.getArtists()
+  })
+
+  // IPC for Music Player
+  ipcMain.on('play-song', (_, songIndex) => {
+    musicPlayerService.play(songIndex)
+  })
+
+  ipcMain.on('pause-song', () => {
+    musicPlayerService.pause()
+  })
+
+  ipcMain.on('resume-song', () => {
+    musicPlayerService.resume()
+  })
+
+  ipcMain.on('play-next-song', () => {
+    musicPlayerService.playNext()
+  })
+
+  ipcMain.on('play-previous-song', () => {
+    musicPlayerService.playPrevious()
+  })
+
+  ipcMain.on('seek-song', (_, time) => {
+    musicPlayerService.seek(time)
+  })
+
+  ipcMain.handle('get-current-song-details', () => {
+    return musicPlayerService.getCurrentSongDetails()
+  })
 
   createWindow()
 
@@ -65,10 +190,8 @@ app.whenReady().then(() => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
+  DatabaseService.getInstance().close()
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.

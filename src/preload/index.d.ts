@@ -1,8 +1,67 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 
+// Redefine interfaces to avoid import issues and match the store
+export interface Song {
+  id: string
+  name: string
+  artist: string
+  album: string
+  duration: string
+  artwork: string
+  path: string
+}
+
+export interface Album {
+  id: string
+  name: string
+  artist: string
+  year: number
+  artwork: string
+}
+
+export interface Artist {
+  id: string
+  name: string
+  artwork: string
+}
+
+export interface IElectronAPI {
+  // Window
+  minimize: () => void
+  maximize: () => void
+  close: () => void
+  onWindowStateChange: (callback: (isMaximized: boolean) => void) => () => void
+
+  // Settings
+  getSetting: (key: string) => Promise<string | null>
+  setSetting: (key: string, value: string) => Promise<void>
+
+  // Library Management
+  getMusicDirectories: () => Promise<string[]>
+  addMusicDirectory: () => Promise<boolean> // returns true on success
+  removeMusicDirectory: (path: string) => Promise<void>
+  scanFolders: () => Promise<void>
+
+  // Library Data
+  getSongs: () => Promise<Song[]>
+  getAlbums: () => Promise<Album[]>
+  getArtists: () => Promise<Artist[]>
+
+  // Music Player
+  playSong: (songIndex?: number) => void
+  pauseSong: () => void
+  resumeSong: () => void
+  playNextSong: () => void
+  playPreviousSong: () => void
+  seekSong: (time: number) => void
+  getCurrentSongDetails: () => Promise<any>
+  onSongChanged: (callback: (songDetails: any) => void) => () => void
+  onPlaybackStateChanged: (callback: (playbackState: any) => void) => () => void
+}
+
 declare global {
   interface Window {
     electron: ElectronAPI
-    api: unknown
+    api: IElectronAPI
   }
 }
