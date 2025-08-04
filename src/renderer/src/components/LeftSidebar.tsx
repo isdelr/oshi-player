@@ -1,6 +1,5 @@
 // src/renderer/src/components/LeftSidebar.tsx
 import {
-  Sidebar,
   SidebarContent,
   SidebarHeader,
   SidebarMenu,
@@ -31,10 +30,7 @@ export function LeftSidebar(): JSX.Element {
 
   return (
     <>
-      <Sidebar
-        className="glass-strong border-l-0 border-t-0 border-b-0" // Applying glassmorphism effect from your CSS
-        collapsible="icon"
-      >
+      <div className="flex h-full flex-col border-0 bg-sidebar">
         <SidebarHeader className="mb-4">
           <Link to="/" className="flex items-center gap-2 pt-2 px-2 text-foreground no-underline">
             <Music className="size-8 text-primary" />
@@ -120,7 +116,7 @@ export function LeftSidebar(): JSX.Element {
             </SidebarGroup>
           </ScrollArea>
         </SidebarContent>
-      </Sidebar>
+      </div>
       <CreatePlaylistDialog open={isCreatePlaylistOpen} onOpenChange={setCreatePlaylistOpen} />
     </>
   )

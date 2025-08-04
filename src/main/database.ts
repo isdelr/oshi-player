@@ -80,6 +80,13 @@ export class DatabaseService {
     return this.sendCommand('create-playlist', payload)
   }
 
+  createPlaylistWithSongs(payload: {
+    name: string
+    description?: string
+    songIds: string[]
+  }): Promise<{ id: string }> {
+    return this.sendCommand('create-playlist-with-songs', payload)
+  }
   getPlaylists(): Promise<Playlist[]> {
     return this.sendCommand('get-playlists')
   }

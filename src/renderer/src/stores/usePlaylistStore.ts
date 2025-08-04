@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { Playlist } from 'src/preload/index.d'
+import { toast } from 'sonner'
 
 interface CreatePlaylistPayload {
   name: string
@@ -13,6 +14,7 @@ interface PlaylistState {
   actions: {
     fetchPlaylists: () => Promise<void>
     createPlaylist: (payload: CreatePlaylistPayload) => Promise<{ id: string } | undefined>
+    createPlaylistFromQueue: (name: string, songIds: string[]) => Promise<{ id: string } | undefined>
     addSongToPlaylist: (playlistId: string, songId: string) => Promise<void>
   }
 }
@@ -40,6 +42,17 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
       } catch (error) {
         console.error('Failed to create playlist:', error)
         return undefined
+      }
+    },
+    createPlaylistFromQueue: async (name, songIds) => {
+      try {
+        const newPlaylistId = await window.api.createPlaylistWithSongs({ name, songIds })
+        await get().actions.fetchPlaylists()
+        toast.success(`Playlist "${name}" created from queue.`)
+        return newPlaylistId
+      } catch (error) {
+        console.error('Failed to create playlist from queue:', error)
+        toast.error('Failed to create playlist.')
       }
     },
     addSongToPlaylist: async (playlistId, songId) => {

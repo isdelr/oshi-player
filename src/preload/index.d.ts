@@ -105,6 +105,11 @@ export interface IElectronAPI {
 
   // Playlists
   createPlaylist: (payload: CreatePlaylistPayload) => Promise<{ id: string }>
+  createPlaylistWithSongs: (payload: {
+    name: string
+    description?: string
+    songIds: string[]
+  }) => Promise<{ id: string }>
   getPlaylists: () => Promise<Playlist[]>
   getPlaylist: (id: string) => Promise<Playlist | null>
   getSongsByPlaylistId: (playlistId: string) => Promise<Song[]>

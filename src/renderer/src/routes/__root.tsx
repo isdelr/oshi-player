@@ -2,7 +2,7 @@
 import { createRootRoute, Outlet, Link } from '@tanstack/react-router'
 // import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { LeftSidebar } from '@renderer/components/LeftSidebar'
-import { SidebarProvider, SidebarInset, SidebarTrigger } from '@renderer/components/ui/sidebar'
+import { SidebarProvider, SidebarInset } from '@renderer/components/ui/sidebar'
 import { JSX, useEffect } from 'react'
 import { GlobalSearch } from '@renderer/components/GlobalSearch'
 import { Button } from '@renderer/components/ui/button'
@@ -14,6 +14,13 @@ import { MusicPlayer } from '@renderer/components/MusicPlayer'
 import { useNavigation } from '@renderer/hooks/useNavigation'
 import { Toaster } from '@renderer/components/ui/sonner'
 import { useFavoritesStore } from '@renderer/stores/useFavoritesStore'
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup
+} from '@renderer/components/ui/resizable'
+import { RightSidebar } from '@renderer/components/RightSidebar'
+import { usePlayerStore } from '@renderer/stores/usePlayerStore'
 
 export const Route = createRootRoute({
   component: RootLayout
@@ -22,89 +29,100 @@ export const Route = createRootRoute({
 function RootLayout(): JSX.Element {
   const { canGoBack, canGoForward, goForward, goBack } = useNavigation()
   const { loadFavorites } = useFavoritesStore((s) => s.actions)
+  const { isQueueSidebarOpen, actions: playerActions } = usePlayerStore()
 
   useEffect(() => {
     loadFavorites()
   }, [loadFavorites])
 
-  // Conditionally render the search bar
   const showSearchBar = location.pathname !== '/settings'
 
   return (
     <ThemeProvider defaultTheme="dark" storageKey="oshi-theme">
       <SidebarProvider>
         <div className="flex h-screen w-full flex-col">
-          <div className="flex flex-1 overflow-y-hidden">
-            <LeftSidebar />
-            <SidebarInset className="flex flex-col p-0">
-              <TitleBar>
-                <div className="flex h-16 w-full items-center gap-4 bg-transparent px-4">
-                  {/* Wrap interactive elements in a div with 'no-drag' */}
-                  <div
-                    className="flex items-center gap-2"
-                    style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-                  >
-                    <div className="md:hidden">
-                      <SidebarTrigger />
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-8 rounded-full"
-                      onClick={goBack}
-                      disabled={!canGoBack}
+          {/* Portal mount for floating UI (search results, etc.) */}
+          <div id="app-portals" /> {/* Added */}
+          <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0 overflow-hidden">
+            <ResizablePanel defaultSize={12} minSize={12} maxSize={20}>
+              <LeftSidebar />
+            </ResizablePanel>
+            <ResizableHandle />
+            <ResizablePanel>
+              <SidebarInset className="flex flex-col p-0 h-full">
+                <TitleBar showBorder={false}>
+                  <div className="flex w-full items-center gap-4 bg-transparent px-4">
+                    <div
+                      className="flex items-center gap-2"
+                      style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
                     >
-                      <ChevronLeft className="size-5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-8 rounded-full"
-                      onClick={goForward}
-                      disabled={!canGoForward}
-                    >
-                      <ChevronRight className="size-5" />
-                    </Button>
-                  </div>
-
-                  {/* The search bar area. The flex-1 div itself remains draggable. */}
-                  <div className="flex-1">
-                    {showSearchBar && (
-                      <div
-                        className="mx-auto w-full max-w-xl"
-                        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 rounded-full"
+                        onClick={goBack}
+                        disabled={!canGoBack}
                       >
-                        <GlobalSearch />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Wrap interactive elements in a div with 'no-drag' */}
-                  <div
-                    className="mr-4 flex items-center gap-2"
-                    style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-                  >
-                    <ThemeSwitcher />
-                    <Link to="/settings" activeOptions={{ exact: true }}>
-                      {({ isActive }) => (
-                        <Button
-                          variant={isActive ? 'secondary' : 'ghost'}
-                          size="icon"
-                          className="size-8 rounded-full"
-                          aria-label="Open Settings"
+                        <ChevronLeft className="size-5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 rounded-full"
+                        onClick={goForward}
+                        disabled={!canGoForward}
+                      >
+                        <ChevronRight className="size-5" />
+                      </Button>
+                    </div>
+                    <div className="flex-1">
+                      {showSearchBar && (
+                        <div
+                          className="mx-auto w-full max-w-xl"
+                          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
                         >
-                          <Settings className="size-5" />
-                        </Button>
+                          <GlobalSearch />
+                        </div>
                       )}
-                    </Link>
+                    </div>
+                    <div
+                      className="mr-4 flex items-center gap-2"
+                      style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                    >
+                      <ThemeSwitcher />
+                      <Link to="/settings" activeOptions={{ exact: true }}>
+                        {({ isActive }) => (
+                          <Button
+                            variant={isActive ? 'secondary' : 'ghost'}
+                            size="icon"
+                            className="size-8 rounded-full"
+                            aria-label="Open Settings"
+                          >
+                            <Settings className="size-5" />
+                          </Button>
+                        )}
+                      </Link>
+                    </div>
                   </div>
-                </div>
-              </TitleBar>
-              <main className="flex-1 overflow-hidden p-8">
-                <Outlet />
-              </main>
-            </SidebarInset>
-          </div>
+                </TitleBar>
+                <main className="flex-1 overflow-hidden p-8">
+                  <Outlet />
+                </main>
+              </SidebarInset>
+            </ResizablePanel>
+            <ResizableHandle className={!isQueueSidebarOpen ? 'hidden' : ''} />
+            <ResizablePanel
+              minSize={20}
+              defaultSize={20}
+              maxSize={30}
+              className={!isQueueSidebarOpen ? 'hidden' : ''}
+              onCollapse={() => {
+                if (isQueueSidebarOpen) playerActions.toggleQueueSidebar()
+              }}
+            >
+              <RightSidebar />
+            </ResizablePanel>
+          </ResizablePanelGroup>
           <MusicPlayer />
           <Toaster position="bottom-right" richColors />
         </div>

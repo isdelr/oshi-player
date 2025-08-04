@@ -46,6 +46,8 @@ const api = {
 
   // Playlists
   createPlaylist: (payload) => ipcRenderer.invoke('create-playlist', payload),
+  createPlaylistWithSongs: (payload) =>
+    ipcRenderer.invoke('create-playlist-with-songs', payload),
   getPlaylists: () => ipcRenderer.invoke('get-playlists'),
   getPlaylist: (id: string) => ipcRenderer.invoke('get-playlist', id),
   getSongsByPlaylistId: (playlistId: string) =>

@@ -614,6 +614,27 @@ class DatabaseService {
     return { id: result.lastInsertRowid as number }
   }
 
+  public createPlaylistWithSongs(payload: {
+    name: string
+    description?: string
+    artwork?: string
+    songIds: string[]
+  }): { id: number } {
+    const { name, description, artwork, songIds } = payload
+    const transaction = this.db.transaction(() => {
+      const createStmt = this.db.prepare(
+        'INSERT INTO playlists (name, description, artworkPath) VALUES (?, ?, ?)'
+      )
+      const result = createStmt.run(name, description, artwork)
+      const playlistId = result.lastInsertRowid as number
+      if (songIds && songIds.length > 0) {
+        const addSongStmt = this.db.prepare('INSERT OR IGNORE INTO playlist_songs (playlistId, songId) VALUES (?, ?)')
+        for (const songId of songIds) addSongStmt.run(playlistId, Number(songId))
+      }
+      return { id: playlistId }
+    })
+    return transaction()
+  }
   public getPlaylists(): Playlist[] {
     const stmt = this.db.prepare(`
       SELECT p.id, p.name, p.description, p.artworkPath as artwork, COUNT(ps.songId) as songCount
@@ -772,6 +793,9 @@ parentPort?.on('message', async (msg: { type: string; payload?: any; id: number 
         break
       case 'create-playlist':
         result = db.createPlaylist(msg.payload)
+        break
+      case 'create-playlist-with-songs':
+        result = db.createPlaylistWithSongs(msg.payload)
         break
       case 'get-playlists':
         result = db.getPlaylists()

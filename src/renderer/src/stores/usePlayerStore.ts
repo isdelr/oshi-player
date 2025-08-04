@@ -20,12 +20,15 @@ export interface PlayerState {
   isSeeking: boolean
   currentIndex: number | null
   playlistSource: 'library' | 'album' | 'artist' | 'playlist' | 'other' // To track where the music is from
+  isQueueSidebarOpen: boolean
   actions: {
     setAudioRef: (ref: React.RefObject<HTMLAudioElement | null>) => void
     playSong: (songs: Song[], index: number, source?: PlayerState['playlistSource']) => void
     togglePlayPause: () => void
     playNext: () => void
     playPrevious: () => void
+    reorderPlaylist: (startIndex: number, endIndex: number) => void
+    clearQueue: () => void
     startSeeking: () => void
     seek: (time: number) => void
     setVolume: (volumeLevel: number) => void
@@ -36,6 +39,7 @@ export interface PlayerState {
     _handleEnded: () => void
     _handleVolumeChange: (e: React.SyntheticEvent<HTMLAudioElement>) => void
     _handleSeeked: (e: React.SyntheticEvent<HTMLAudioElement>) => void
+    toggleQueueSidebar: () => void
   }
 }
 
@@ -48,6 +52,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   isSeeking: false,
   currentIndex: null,
   playlistSource: 'other',
+  isQueueSidebarOpen: false,
 
   actions: {
     setAudioRef: (ref) => {
@@ -60,7 +65,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       if (!newSong) return
 
       try {
-        const formattedPath = `safe-file://${newSong.path}`
+        const formattedPath = `safe-file://${newSong.path.replace(/\\/g, '/')}`
         const audioBlob = await fetch(formattedPath)
 
         const audioUrl = URL.createObjectURL(await audioBlob.blob())
@@ -127,6 +132,40 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       const { playlist, currentIndex } = get()
       if (currentIndex === null || currentIndex <= 0) return
       get().actions.playSong(playlist, currentIndex - 1, get().playlistSource)
+    },
+
+    reorderPlaylist: (startIndex: number, endIndex: number) => {
+      set((state) => {
+        const { playlist, currentIndex } = state
+        if (currentIndex === null) return {}
+
+        const newPlaylist = Array.from(playlist)
+        const [removed] = newPlaylist.splice(startIndex, 1)
+        newPlaylist.splice(endIndex, 0, removed)
+
+        let newCurrentIndex = currentIndex
+        if (startIndex === currentIndex) {
+          newCurrentIndex = endIndex
+        } else if (startIndex < currentIndex && endIndex >= currentIndex) {
+          newCurrentIndex--
+        } else if (startIndex > currentIndex && endIndex <= currentIndex) {
+          newCurrentIndex++
+        }
+        return { playlist: newPlaylist, currentIndex: newCurrentIndex }
+      })
+    },
+
+    clearQueue: () => {
+      if (audioRef?.current) {
+        audioRef.current.pause()
+        if (audioRef.current.src.startsWith('blob:')) URL.revokeObjectURL(audioRef.current.src)
+        audioRef.current.src = ''
+      }
+      set({ playlist: [], currentSong: null, isPlaying: false, currentTime: 0, currentIndex: null })
+    },
+
+    toggleQueueSidebar: () => {
+      set((state) => ({ isQueueSidebarOpen: !state.isQueueSidebarOpen }))
     },
 
     startSeeking: () => set({ isSeeking: true }),

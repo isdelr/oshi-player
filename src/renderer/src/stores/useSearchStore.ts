@@ -55,8 +55,9 @@ const useSearchStore = create<SearchState>((set, get) => ({
      * @param {string} query - The search query.
      */
     setQuery: (query) => {
-      set({ query, isSearchOpen: query.length > 0, isLoading: query.length > 0 })
+      set({ query, isLoading: query.length > 0 })
       if (query.length > 0) {
+        set({ isSearchOpen: true })
         debouncedSearch()
       } else {
         debouncedSearch.cancel()
@@ -147,6 +148,6 @@ export const handleSearchResultSelect = (item: SearchResultItem): void => {
   switch (item.searchType) {
     case 'song':
       playSong([item as Song], 0)
-      break;
+      break
   }
 }

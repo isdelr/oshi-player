@@ -1,0 +1,33 @@
+/* General Title Bar Styles */
+.title-bar {
+  -webkit-app-region: drag; /* Makes the entire bar draggable */
+  user-select: none; /* Prevents text selection */
+  flex-shrink: 0;
+}
+
+/* Make specific elements non-draggable */
+.title-bar-controls,
+.title-bar-content button,
+.title-bar-content a,
+.title-bar-content input,
+.title-bar-content [role='button'] {
+  -webkit-app-region: no-drag;
+}
+
+.title-bar-mac .title-bar-content {
+  text-align: center;
+}
+
+.title-bar-mac .mac-traffic-lights {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  -webkit-app-region: no-drag;
+}
+
+/* Windows controls specific hover states */
+.windows-control.close:hover {
+  background-color: #e81123;
+  color: white;
+}

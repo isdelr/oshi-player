@@ -323,6 +323,10 @@ app.whenReady().then(async () => {
     return await dbService.createPlaylist(payload)
   })
 
+  ipcMain.handle('create-playlist-with-songs', async (_, payload) => {
+    return await dbService.createPlaylistWithSongs(payload)
+  })
+
   ipcMain.handle('get-playlists', async () => {
     return await dbService.getPlaylists()
   })
