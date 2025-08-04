@@ -1,15 +1,39 @@
 // src/main/index.ts
-import { app, shell, BrowserWindow, ipcMain, screen, dialog, protocol, Menu, net } from 'electron'
+
+import {
+  app,
+  shell,
+  BrowserWindow,
+  ipcMain,
+  screen,
+  dialog,
+  protocol,
+  Menu,
+  net,
+  nativeTheme,
+  Tray // Import Tray
+} from 'electron'
 import { join, normalize, resolve } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { DatabaseService } from './database'
 import { MusicPlayerService } from './musicPlayerService'
 import { pathToFileURL } from 'url'
+import { unlink } from 'fs/promises' // Import fs promises for file deletion
 
+// Hide the default menu
 Menu.setApplicationMenu(null)
 
-function createWindow(): void {
+// Keep a global reference to the tray object
+let tray: Tray | null = null
+let isQuitting = false
+
+// This function needs to be async now to read settings before creating the window.
+async function createWindow(): Promise<void> {
+  const dbService = DatabaseService.getInstance()
+  const frameStyle = await dbService.getSetting('windowFrameStyle')
+  const isCustomFrame = frameStyle !== 'native'
+
   const { width, height } = screen.getPrimaryDisplay().workAreaSize
   const mainWindow = new BrowserWindow({
     width: Math.floor(width * 0.8),
@@ -18,9 +42,10 @@ function createWindow(): void {
     minHeight: 670,
     show: false,
     autoHideMenuBar: true,
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#000000' : '#FFFFFF',
     ...(process.platform === 'linux' ? { icon } : {}),
-    frame: false,
-    titleBarStyle: 'hidden',
+    frame: !isCustomFrame, // Use the setting here
+    titleBarStyle: isCustomFrame ? 'hidden' : 'default', // Adjust titleBarStyle as well
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -29,6 +54,7 @@ function createWindow(): void {
     }
   })
 
+  // --- Window Event Handlers ---
   mainWindow.on('maximize', () => {
     mainWindow.webContents.send('window-state-change', true)
   })
@@ -41,13 +67,43 @@ function createWindow(): void {
     mainWindow.show()
   })
 
+  // New 'close' handler for minimize-to-tray functionality
+  mainWindow.on('close', async (event) => {
+    const minimizeToTrayEnabled = (await dbService.getSetting('minimizeToTray')) !== 'false' // Default to true
+    if (minimizeToTrayEnabled && !isQuitting) {
+      event.preventDefault()
+      mainWindow.hide()
+      if (!tray) {
+        tray = new Tray(icon)
+        const contextMenu = Menu.buildFromTemplate([
+          {
+            label: 'Show Oshi',
+            click: function () {
+              mainWindow.show()
+            }
+          },
+          {
+            label: 'Quit',
+            click: function () {
+              app.isQuitting = true
+              app.quit()
+            }
+          }
+        ])
+        tray.setToolTip('Oshi Player')
+        tray.setContextMenu(contextMenu)
+        tray.on('double-click', () => {
+          mainWindow.show()
+        })
+      }
+    }
+  })
+
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
 
-  // HMR for renderer based on electron-vite cli.
-  // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
@@ -67,6 +123,15 @@ protocol.registerSchemesAsPrivileged([
     }
   }
 ])
+
+// Extend the app object type for our custom property
+declare global {
+  namespace Electron {
+    interface App {
+      isQuitting?: boolean
+    }
+  }
+}
 
 app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.oshi')
@@ -104,7 +169,7 @@ app.whenReady().then(async () => {
       if (error.message.includes('ERR_ACCESS_DENIED')) {
         return new Response('Access Denied', { status: 403 })
       }
-      
+
       return new Response('Internal Server Error', { status: 500 })
     }
   })
@@ -131,6 +196,49 @@ app.whenReady().then(async () => {
   })
   ipcMain.on('close-window', (event) => {
     BrowserWindow.fromWebContents(event.sender)?.close()
+  })
+
+  // --- NEW IPC Handlers for Settings ---
+  ipcMain.handle('get-login-settings', () => {
+    return app.getLoginItemSettings()
+  })
+
+  ipcMain.handle('set-login-settings', (_, settings) => {
+    app.setLoginItemSettings(settings)
+  })
+
+  ipcMain.on('relaunch-app', () => {
+    app.relaunch()
+    app.quit()
+  })
+
+  ipcMain.handle('reset-app', async () => {
+    const dbPath = join(app.getPath('userData'), 'app.db')
+
+    await dbService.close() // Close the DB connection before deleting
+
+    try {
+      // Attempt to delete the main DB file and its journals
+      await unlink(dbPath)
+      await unlink(`${dbPath}-shm`).catch(() => {
+        /* ignore error if file doesn't exist */
+      })
+      await unlink(`${dbPath}-wal`).catch(() => {
+        /* ignore error if file doesn't exist */
+      })
+    } catch (error) {
+      console.error('Failed to delete database file:', error)
+      // If the file doesn't exist, that's okay, just log other errors
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        dialog.showErrorBox('Reset Failed', 'Could not remove the database file.')
+        // We should probably not relaunch if we can't delete the file
+        return
+      }
+    }
+
+    // Relaunch the application
+    app.relaunch()
+    app.quit()
   })
 
   // IPC handlers for DatabaseService
@@ -207,6 +315,49 @@ app.whenReady().then(async () => {
     return await dbService.getSongsByArtistId(artistId)
   })
 
+  ipcMain.handle('search', async (_, payload: any) => {
+    return await dbService.search(payload)
+  })
+
+  ipcMain.handle('create-playlist', async (_, payload) => {
+    return await dbService.createPlaylist(payload)
+  })
+
+  ipcMain.handle('get-playlists', async () => {
+    return await dbService.getPlaylists()
+  })
+
+  ipcMain.handle('get-playlist', async (_, id: string) => {
+    return await dbService.getPlaylist(id)
+  })
+
+  ipcMain.handle('get-songs-by-playlist-id', async (_, playlistId: string) => {
+    return await dbService.getSongsByPlaylistId(playlistId)
+  })
+
+  ipcMain.handle(
+    'add-song-to-playlist',
+    async (_, payload: { playlistId: string; songId: string }) => {
+      return await dbService.addSongToPlaylist(payload)
+    }
+  )
+
+  ipcMain.handle('add-recently-played', async (_, payload) => {
+    return await dbService.addRecentlyPlayed(payload)
+  })
+
+  ipcMain.handle('get-recently-played', async () => {
+    return await dbService.getRecentlyPlayed()
+  })
+
+  ipcMain.handle('toggle-favorite', async (_, payload: { itemId: string; itemType: string }) => {
+    return await dbService.toggleFavorite(payload)
+  })
+
+  ipcMain.handle('get-favorite-ids', async () => {
+    return await dbService.getFavoriteIds()
+  })
+
   createWindow()
 
   app.on('activate', function () {
@@ -214,9 +365,19 @@ app.whenReady().then(async () => {
   })
 })
 
+// Add isQuitting flag for tray logic
+app.on('before-quit', () => {
+  isQuitting = true
+})
+
 app.on('window-all-closed', async () => {
-  await DatabaseService.getInstance().close()
   if (process.platform !== 'darwin') {
+    await DatabaseService.getInstance().close()
     app.quit()
   }
+})
+
+// Make sure to close DB on quit
+app.on('quit', async () => {
+  await DatabaseService.getInstance().close()
 })

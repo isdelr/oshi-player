@@ -15,6 +15,8 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
 import { Button } from './ui/button'
 import { Slider } from './ui/slider'
 import { usePlayerStore } from '@renderer/stores/usePlayerStore'
+import { useFavoritesStore } from '@renderer/stores/useFavoritesStore'
+import { cn } from '@renderer/lib/utils'
 
 const formatTime = (secs: number | undefined): string => {
   if (secs === undefined || isNaN(secs)) return '0:00'
@@ -40,7 +42,8 @@ const HTMLAudioComponent = ({ playerRef, actions }): JSX.Element => (
 export function MusicPlayer(): JSX.Element {
   const audioRef = useRef<HTMLAudioElement>(null)
   const { currentSong, isPlaying, currentTime, volume, isSeeking, actions } = usePlayerStore()
-  
+  const { actions: favoritesActions, favoriteSongIds } = useFavoritesStore()
+
   // Local state for tracking slider position during seek
   const [seekTime, setSeekTime] = useState<number>(0)
 
@@ -127,111 +130,115 @@ export function MusicPlayer(): JSX.Element {
           <Volume2 className="size-4" />
           <Slider value={[50]} max={100} step={1} className="w-full" disabled />
         </div>
-        <Button variant="ghost" size="icon" className="size-7 rounded-full" disabled>
-          <Maximize2 className="size-4" />
-        </Button>
       </div>
     </footer>
   )
+
+  if (!currentSong) return disabledPlayer
+
+  const isCurrentSongFavorite = favoriteSongIds.has(currentSong.id)
 
   return (
     <>
       {/* The audio element is always in the DOM, controlled by the Zustand store */}
       <HTMLAudioComponent playerRef={audioRef} actions={actions} />
 
-      {!currentSong ? (
-        disabledPlayer
-      ) : (
-        <footer className="music-player z-50 flex h-20 shrink-0 items-center justify-between gap-3 border-t px-4 py-2 overflow-show">
-          {/* Left Section: Track Info */}
-          <div className="flex w-1/6 min-w-0 items-center gap-2">
-            <Avatar className="size-10 rounded-md">
-              <AvatarImage src={currentSong.artwork} />
-              <AvatarFallback className="rounded-md bg-muted text-xs">
-                {currentSong.artist[0]}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-foreground leading-tight">
-                {currentSong.name}
-              </p>
-              <p className="truncate text-xs text-muted-foreground leading-tight">
-                {currentSong.artist}
-              </p>
-            </div>
-            <Button variant="ghost" size="icon" className="size-7 shrink-0 rounded-full">
-              <Heart className="size-4 text-muted-foreground hover:text-red-500" />
-            </Button>
+      <footer className="music-player z-50 flex h-20 shrink-0 items-center justify-between gap-3 border-t px-4 py-2 overflow-show">
+        {/* Left Section: Track Info */}
+        <div className="flex w-1/6 min-w-0 items-center gap-2">
+          <Avatar className="size-10 rounded-md">
+            <AvatarImage src={currentSong.artwork} />
+            <AvatarFallback className="rounded-md bg-muted text-xs">
+              {currentSong.artist[0]}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-foreground leading-tight">
+              {currentSong.name}
+            </p>
+            <p className="truncate text-xs text-muted-foreground leading-tight">
+              {currentSong.artist}
+            </p>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7 shrink-0 rounded-full"
+            onClick={() => favoritesActions.toggleFavorite(currentSong.id, 'song')}
+          >
+            <Heart
+              className={cn(
+                'size-4 text-muted-foreground hover:text-red-500',
+                isCurrentSongFavorite && 'fill-red-500 text-red-500'
+              )}
+            />
+          </Button>
+        </div>
 
-          {/* Center Section: Controls & Progress */}
-          <div className="flex w-3/6 max-w-xl flex-col items-center gap-1 pt-2">
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="size-7 rounded-full">
-                <Shuffle className="size-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-7 rounded-full"
-                onClick={actions.playPrevious}
-              >
-                <SkipBack className="size-4" />
-              </Button>
-              <PlayPauseButton />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-7 rounded-full"
-                onClick={actions.playNext}
-              >
-                <SkipForward className="size-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="size-7 rounded-full">
-                <Repeat className="size-3" />
-              </Button>
-            </div>
-            <div className="flex w-full items-center gap-2">
-              <span className="text-sm font-mono text-muted-foreground tabular-nums">
-                {formatTime(isSeeking ? seekTime : currentTime)}
-              </span>
-              <Slider
-                value={[isSeeking ? seekTime : currentTime]}
-                max={currentSong.rawDuration || 1}
-                step={0.1}
-                className="w-full"
-                onValueChange={handleSeekChange}
-                onValueCommit={handleSeekCommit}
-                onPointerDown={handleSeekStart}
-                disabled={!currentSong || !currentSong.rawDuration}
-              />
-              <span className="text-sm font-mono text-muted-foreground tabular-nums">
-                {currentSong.duration}
-              </span>
-            </div>
+        {/* Center Section: Controls & Progress */}
+        <div className="flex w-3/6 max-w-xl flex-col items-center gap-1 pt-2">
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" className="size-7 rounded-full">
+              <Shuffle className="size-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 rounded-full"
+              onClick={actions.playPrevious}
+            >
+              <SkipBack className="size-4" />
+            </Button>
+            <PlayPauseButton />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 rounded-full"
+              onClick={actions.playNext}
+            >
+              <SkipForward className="size-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="size-7 rounded-full">
+              <Repeat className="size-3" />
+            </Button>
           </div>
+          <div className="flex w-full items-center gap-2">
+            <span className="text-sm font-mono text-muted-foreground tabular-nums">
+              {formatTime(isSeeking ? seekTime : currentTime)}
+            </span>
+            <Slider
+              value={[isSeeking ? seekTime : currentTime]}
+              max={currentSong.rawDuration || 1}
+              step={0.1}
+              className="w-full"
+              onValueChange={handleSeekChange}
+              onValueCommit={handleSeekCommit}
+              onPointerDown={handleSeekStart}
+              disabled={!currentSong || !currentSong.rawDuration}
+            />
+            <span className="text-sm font-mono text-muted-foreground tabular-nums">
+              {currentSong.duration}
+            </span>
+          </div>
+        </div>
 
-          {/* Right Section: Volume & Options */}
-          <div className="flex w-1/6 items-center justify-end gap-2">
-            <Button variant="ghost" size="icon" className="size-7 rounded-full">
-              <ListMusic className="size-4" />
-            </Button>
-            <div className="flex w-24 items-center gap-2">
-              <Volume2 className="size-4" />
-              <Slider
-                value={[volume * 100]}
-                max={100}
-                step={1}
-                className="w-full"
-                onValueChange={handleVolumeChange}
-              />
-            </div>
-            <Button variant="ghost" size="icon" className="size-7 rounded-full">
-              <Maximize2 className="size-4" />
-            </Button>
+        {/* Right Section: Volume & Options */}
+        <div className="flex w-1/6 items-center justify-end gap-2">
+          <Button variant="ghost" size="icon" className="size-7 rounded-full">
+            <ListMusic className="size-4" />
+          </Button>
+          <div className="flex w-24 items-center gap-2">
+            <Volume2 className="size-4" />
+            <Slider
+              value={[volume * 100]}
+              max={100}
+              step={1}
+              className="w-full"
+              onValueChange={handleVolumeChange}
+            />
           </div>
-        </footer>
-      )}
+        </div>
+      </footer>
     </>
   )
 }

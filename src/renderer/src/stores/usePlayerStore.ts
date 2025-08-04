@@ -1,4 +1,3 @@
-// src/renderer/src/stores/usePlayerStore.ts
 import { create } from 'zustand'
 import { Song, useLibraryStore } from './useLibraryStore'
 import React from 'react'
@@ -12,7 +11,7 @@ interface CurrentSongDetails extends Song {
 // Keep a reference to the audio element outside the store's state
 let audioRef: React.RefObject<HTMLAudioElement | null> | null = null
 
-interface PlayerState {
+export interface PlayerState {
   playlist: Song[]
   currentSong: CurrentSongDetails | null
   isPlaying: boolean
@@ -20,7 +19,7 @@ interface PlayerState {
   volume: number
   isSeeking: boolean
   currentIndex: number | null
-  playlistSource: 'library' | 'album' | 'artist' | 'other' // To track where the music is from
+  playlistSource: 'library' | 'album' | 'artist' | 'playlist' | 'other' // To track where the music is from
   actions: {
     setAudioRef: (ref: React.RefObject<HTMLAudioElement | null>) => void
     playSong: (songs: Song[], index: number, source?: PlayerState['playlistSource']) => void
@@ -104,16 +103,23 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       const isLastSong = currentIndex === null || currentIndex >= playlist.length - 1
 
       // If it's the last song and the playlist came from the main library, try to load more.
-      if (isLastSong && get().playlistSource === 'library' && useLibraryStore.getState().hasMoreSongs) {
-        useLibraryStore.getState().actions.loadMoreSongs().then(() => {
+      if (
+        isLastSong &&
+        get().playlistSource === 'library' &&
+        useLibraryStore.getState().hasMoreSongs
+      ) {
+        useLibraryStore
+          .getState()
+          .actions.loadMoreSongs()
+          .then(() => {
             const updatedPlaylist = useLibraryStore.getState().songs
             const nextIndex = (get().currentIndex ?? -1) + 1
-            if(nextIndex < updatedPlaylist.length) {
-                get().actions.playSong(updatedPlaylist, nextIndex, 'library')
+            if (nextIndex < updatedPlaylist.length) {
+              get().actions.playSong(updatedPlaylist, nextIndex, 'library')
             }
-        })
+          })
       } else if (!isLastSong) {
-          get().actions.playSong(playlist, (currentIndex ?? -1) + 1, get().playlistSource)
+        get().actions.playSong(playlist, (currentIndex ?? -1) + 1, get().playlistSource)
       }
     },
 
@@ -143,21 +149,27 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         set({ currentTime: e.currentTarget.currentTime })
       }
 
+      const { currentIndex, playlistSource } = get()
       const {
-        currentIndex,
-        playlistSource,
-      } = get()
-      const { hasMoreSongs, isLoadingMoreSongs, actions: libraryActions } = useLibraryStore.getState()
-      
+        hasMoreSongs,
+        isLoadingMoreSongs,
+        actions: libraryActions
+      } = useLibraryStore.getState()
+
       // Proactive loading only if playing from the main library view
-      if (playlistSource === 'library' && currentIndex !== null && hasMoreSongs && !isLoadingMoreSongs) {
+      if (
+        playlistSource === 'library' &&
+        currentIndex !== null &&
+        hasMoreSongs &&
+        !isLoadingMoreSongs
+      ) {
         const songsRemaining = useLibraryStore.getState().songs.length - 1 - currentIndex
         if (songsRemaining < 5) {
-            libraryActions.loadMoreSongs().then(() => {
-                // After loading, update the player's playlist to match the new, longer list
-                const newPlaylist = useLibraryStore.getState().songs
-                set({ playlist: newPlaylist })
-            })
+          libraryActions.loadMoreSongs().then(() => {
+            // After loading, update the player's playlist to match the new, longer list
+            const newPlaylist = useLibraryStore.getState().songs
+            set({ playlist: newPlaylist })
+          })
         }
       }
     },

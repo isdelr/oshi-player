@@ -29,12 +29,61 @@ export interface Artist {
   artwork: string
 }
 
+export interface Playlist {
+  id: string
+  name: string
+  description: string | null
+  artwork: string | null
+  songCount: number
+}
+
+export interface SearchPayload {
+  query: string
+  filters: {
+    songs: boolean
+    albums: boolean
+    artists: boolean
+    playlists: boolean
+  }
+}
+
+// The search result can be any of the main types, plus a new field to distinguish them
+export type SearchResult = (Song | Album | Artist | Playlist) & {
+  searchType: 'song' | 'album' | 'artist' | 'playlist'
+}
+
+export type RecentlyPlayedItem = (Song | Album | Artist | Playlist) & {
+  itemType: 'song' | 'album' | 'artist' | 'playlist'
+  playCount: number
+  playedAt: string
+  recentId: number
+  name: string
+}
+
 export interface GetSongsPayload {
   limit: number
   offset: number
 }
 
+export interface FavoriteIds {
+  songs: string[]
+  albums: string[]
+  artists: string[]
+}
+
 export class DatabaseService {
+  createPlaylist(payload: {
+    name: string
+    description: string
+    artwork: string
+  }): Promise<{ id: string }> {
+    return this.sendCommand('create-playlist', payload)
+  }
+
+  getPlaylists(): Promise<Playlist[]> {
+    return this.sendCommand('get-playlists')
+  }
+
   private static instance: DatabaseService
   private worker: Worker
   private nextRequestId = 0
@@ -162,6 +211,44 @@ export class DatabaseService {
 
   public getSongsByArtistId(artistId: string): Promise<Song[]> {
     return this.sendCommand('get-songs-by-artist-id', artistId)
+  }
+
+  public search(payload: SearchPayload): Promise<SearchResult[]> {
+    return this.sendCommand('search', payload)
+  }
+
+  public getPlaylist(id: string): Promise<Playlist | null> {
+    return this.sendCommand('get-playlist', id)
+  }
+
+  public getSongsByPlaylistId(playlistId: string): Promise<Song[]> {
+    return this.sendCommand('get-songs-by-playlist-id', playlistId)
+  }
+
+  public addSongToPlaylist(payload: { playlistId: string; songId: string }): Promise<void> {
+    return this.sendCommand('add-song-to-playlist', {
+      playlistId: Number(payload.playlistId),
+      songId: Number(payload.songId)
+    })
+  }
+
+  public addRecentlyPlayed(payload: { itemId: string; itemType: string }): Promise<void> {
+    return this.sendCommand('add-recently-played', payload)
+  }
+
+  public getRecentlyPlayed(): Promise<RecentlyPlayedItem[]> {
+    return this.sendCommand('get-recently-played')
+  }
+
+  public toggleFavorite(payload: {
+    itemId: string
+    itemType: string
+  }): Promise<{ isFavorite: boolean }> {
+    return this.sendCommand('toggle-favorite', payload)
+  }
+
+  public getFavoriteIds(): Promise<FavoriteIds> {
+    return this.sendCommand('get-favorite-ids')
   }
 
   public async close(): Promise<void> {

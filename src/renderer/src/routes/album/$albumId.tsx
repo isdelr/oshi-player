@@ -6,6 +6,8 @@ import { Button } from '@renderer/components/ui/button'
 import { Heart, Play, Plus, Dot, Mic2, Calendar } from 'lucide-react'
 import { SongList } from '@renderer/components/SongList'
 import { usePlayerStore } from '@renderer/stores/usePlayerStore'
+import { useFavoritesStore } from '@renderer/stores/useFavoritesStore'
+import { cn } from '@renderer/lib/utils'
 
 export const Route = createFileRoute('/album/$albumId')({
   component: AlbumView,
@@ -24,10 +26,13 @@ export const Route = createFileRoute('/album/$albumId')({
 function AlbumView(): JSX.Element {
   const { album, songs, duration } = Route.useLoaderData()
   const playerActions = usePlayerStore((s) => s.actions)
+  const { actions: favoritesActions, favoriteAlbumIds } = useFavoritesStore()
+  const isAlbumFavorited = favoriteAlbumIds.has(album.id)
 
   const handlePlayAlbum = () => {
     if (songs.length > 0) {
-      playerActions.playSong(songs, 0)
+      playerActions.playSong(songs, 0, 'album')
+      window.api.addRecentlyPlayed({ itemId: album.id, itemType: 'album' })
     }
   }
 
@@ -73,8 +78,18 @@ function AlbumView(): JSX.Element {
               <Play className="size-5 mr-2 fill-current" />
               Play
             </Button>
-            <Button variant="ghost" size="icon" className="size-12 rounded-full control-button">
-              <Heart className="size-6 text-muted-foreground" />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-12 rounded-full control-button"
+              onClick={() => favoritesActions.toggleFavorite(album.id, 'album')}
+            >
+              <Heart
+                className={cn(
+                  'size-6 text-muted-foreground',
+                  isAlbumFavorited && 'fill-red-500 text-red-500'
+                )}
+              />
             </Button>
             <Button variant="ghost" size="icon" className="size-12 rounded-full control-button">
               <Plus className="size-6 text-muted-foreground" />
@@ -85,7 +100,7 @@ function AlbumView(): JSX.Element {
 
       {/* Songs Table Container */}
       <div className="flex-1 min-h-0">
-        <SongList songs={songs} showAlbumColumn={false} />
+        <SongList songs={songs} showAlbumColumn={false} source="album" />
       </div>
     </div>
   )

@@ -3,7 +3,7 @@ import { createRootRoute, Outlet, Link } from '@tanstack/react-router'
 // import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { LeftSidebar } from '@renderer/components/LeftSidebar'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@renderer/components/ui/sidebar'
-import { JSX } from 'react'
+import { JSX, useEffect } from 'react'
 import { GlobalSearch } from '@renderer/components/GlobalSearch'
 import { Button } from '@renderer/components/ui/button'
 import { ChevronLeft, ChevronRight, Settings } from 'lucide-react'
@@ -12,6 +12,8 @@ import { ThemeSwitcher } from '@renderer/components/ThemeSwitcher'
 import { TitleBar } from '@renderer/components/TitleBar'
 import { MusicPlayer } from '@renderer/components/MusicPlayer'
 import { useNavigation } from '@renderer/hooks/useNavigation'
+import { Toaster } from '@renderer/components/ui/sonner'
+import { useFavoritesStore } from '@renderer/stores/useFavoritesStore'
 
 export const Route = createRootRoute({
   component: RootLayout
@@ -19,6 +21,11 @@ export const Route = createRootRoute({
 
 function RootLayout(): JSX.Element {
   const { canGoBack, canGoForward, goForward, goBack } = useNavigation()
+  const { loadFavorites } = useFavoritesStore((s) => s.actions)
+
+  useEffect(() => {
+    loadFavorites()
+  }, [loadFavorites])
 
   // Conditionally render the search bar
   const showSearchBar = location.pathname !== '/settings'
@@ -99,6 +106,7 @@ function RootLayout(): JSX.Element {
             </SidebarInset>
           </div>
           <MusicPlayer />
+          <Toaster position="bottom-right" richColors />
         </div>
       </SidebarProvider>
     </ThemeProvider>

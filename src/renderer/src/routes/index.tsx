@@ -27,7 +27,8 @@ function LocalFilesHome(): JSX.Element {
     e.stopPropagation()
     const albumSongs = await window.api.getSongsByAlbumId(albumId)
     if (albumSongs.length > 0) {
-      playerActions.playSong(albumSongs, 0)
+      playerActions.playSong(albumSongs, 0, 'album')
+      window.api.addRecentlyPlayed({ itemId: albumId, itemType: 'album' })
     }
   }
 
@@ -74,7 +75,11 @@ function LocalFilesHome(): JSX.Element {
 
         <div className="flex-1 min-h-0">
           <TabsContent value="songs" className="h-full m-0 p-0">
-            <SongList songs={songs} isInitialLoading={isScanning && songs.length === 0} />
+            <SongList
+              songs={songs}
+              isInitialLoading={isScanning && songs.length === 0}
+              source="library"
+            />
           </TabsContent>
 
           <TabsContent value="albums" className="h-full m-0 p-0">

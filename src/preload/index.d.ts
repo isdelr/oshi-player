@@ -26,9 +26,52 @@ export interface Artist {
   artwork: string
 }
 
+export interface Playlist {
+  id: string
+  name: string
+  description: string | null
+  artwork: string
+  songCount: number
+}
+
+export interface SearchPayload {
+  query: string
+  filters: {
+    songs: boolean
+    albums: boolean
+    artists: boolean
+    playlists: boolean
+  }
+}
+
+export type SearchResult = (Song | Album | Artist | Playlist) & {
+  searchType: 'song' | 'album' | 'artist' | 'playlist'
+}
+
+export type RecentlyPlayedItem = (Song | Album | Artist | Playlist) & {
+  itemType: 'song' | 'album' | 'artist' | 'playlist'
+  playCount: number
+  playedAt: string
+  recentId: number // The ID from the recently_played table
+  name: string
+  artist?: string
+}
+
+export interface CreatePlaylistPayload {
+  name: string
+  description?: string
+  artwork?: string
+}
+
 export interface GetSongsPayload {
   limit: number
   offset: number
+}
+
+export interface FavoriteIds {
+  songs: string[]
+  albums: string[]
+  artists: string[]
 }
 
 export interface IElectronAPI {
@@ -58,6 +101,31 @@ export interface IElectronAPI {
   getSongsByAlbumId: (albumId: string) => Promise<Song[]>
   getAlbumsByArtistId: (artistId: string) => Promise<Album[]>
   getSongsByArtistId: (artistId: string) => Promise<Song[]>
+  search: (payload: SearchPayload) => Promise<SearchResult[]>
+
+  // Playlists
+  createPlaylist: (payload: CreatePlaylistPayload) => Promise<{ id: string }>
+  getPlaylists: () => Promise<Playlist[]>
+  getPlaylist: (id: string) => Promise<Playlist | null>
+  getSongsByPlaylistId: (playlistId: string) => Promise<Song[]>
+  addSongToPlaylist: (payload: { playlistId: string; songId: string }) => Promise<void>
+
+  // Recently Played
+  addRecentlyPlayed: (payload: { itemId: string; itemType: string }) => Promise<void>
+  getRecentlyPlayed: () => Promise<RecentlyPlayedItem[]>
+
+  // Favorites
+  toggleFavorite: (payload: {
+    itemId: string
+    itemType: string
+  }) => Promise<{ isFavorite: boolean }>
+  getFavoriteIds: () => Promise<FavoriteIds>
+
+  // Settings
+  getLoginSettings: () => Promise<Electron.LoginItemSettings>
+  setLoginSettings: (settings: Electron.Settings) => Promise<void>
+  relaunchApp: () => void
+  resetApp: () => Promise<void>
 }
 
 declare global {

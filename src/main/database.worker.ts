@@ -1,5 +1,3 @@
-// src/main/database.worker.ts
-
 import { parentPort, workerData } from 'worker_threads'
 import path from 'path'
 import Database from 'better-sqlite3'
@@ -31,6 +29,36 @@ export interface Artist {
   id: string
   name: string
   artwork: string
+}
+
+export interface SearchPayload {
+  query: string
+  filters: {
+    songs: boolean
+    albums: boolean
+    artists: boolean
+    playlists: boolean // Will be unused for now
+  }
+}
+
+// This will be a union type
+export type SearchResult = (Song | Album | Artist) & { searchType: 'song' | 'album' | 'artist' }
+
+export type RecentlyPlayedItem = (Song | Album | Artist | Playlist) & {
+  itemType: 'song' | 'album' | 'artist' | 'playlist'
+  playCount: number
+  playedAt: string // Will format this later
+  recentId: number
+  name: string
+  artist?: string
+}
+
+export interface Playlist {
+  id: string
+  name: string
+  description: string | null
+  artwork: string | null
+  songCount: number
 }
 
 export interface GetSongsPayload {
@@ -98,6 +126,40 @@ class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_songs_artistId ON songs (artistId);
       CREATE INDEX IF NOT EXISTS idx_albums_artistId ON albums (artistId);
       CREATE INDEX IF NOT EXISTS idx_artists_name ON artists (name);
+
+      CREATE TABLE IF NOT EXISTS playlists (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT,
+        artworkPath TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS playlist_songs (
+        playlistId INTEGER NOT NULL,
+        songId INTEGER NOT NULL,
+        FOREIGN KEY (playlistId) REFERENCES playlists (id) ON DELETE CASCADE,
+        FOREIGN KEY (songId) REFERENCES songs (id) ON DELETE CASCADE,
+        PRIMARY KEY (playlistId, songId)
+      );
+
+      CREATE TABLE IF NOT EXISTS recently_played (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        itemId TEXT NOT NULL,
+        itemType TEXT NOT NULL CHECK(itemType IN ('song', 'album', 'artist', 'playlist')),
+        playedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        playCount INTEGER NOT NULL DEFAULT 1
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_recently_played_playedAt ON recently_played (playedAt);
+      
+      CREATE TABLE IF NOT EXISTS favorites (
+        itemId TEXT NOT NULL,
+        itemType TEXT NOT NULL CHECK(itemType IN ('song', 'album', 'artist')),
+        createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (itemId, itemType)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_favorites_itemType ON favorites (itemType);
     `
     this.db.exec(createTablesQuery)
   }
@@ -420,6 +482,233 @@ class DatabaseService {
     }))
   }
 
+  public search(payload: SearchPayload): SearchResult[] {
+    const { query, filters } = payload
+    if (!query) return []
+
+    const searchTerm = `%${query}%`
+    const results: SearchResult[] = []
+
+    const songQuery = `
+        SELECT s.id, s.title as name, s.path, s.duration as rawDuration, al.name as album, ar.name as artist, COALESCE(s.artworkPath, al.artworkPath) as artwork, 'song' as searchType
+        FROM songs s
+        JOIN albums al ON s.albumId = al.id
+        JOIN artists ar ON s.artistId = ar.id
+        WHERE s.title LIKE ?
+        LIMIT 10
+    `
+    if (filters.songs) {
+      const songs = this.db.prepare(songQuery).all(searchTerm) as any[]
+      results.push(
+        ...songs.map((s: any) => ({
+          ...s,
+          id: s.id.toString(),
+          duration: this.formatDuration(s.rawDuration)
+        }))
+      )
+    }
+
+    const albumQuery = `
+        SELECT al.id, al.name, ar.name as artist, al.year, al.artworkPath as artwork, 'album' as searchType
+        FROM albums al
+        JOIN artists ar ON al.artistId = ar.id
+        WHERE al.name LIKE ?
+        LIMIT 10
+    `
+    if (filters.albums) {
+      const albums = this.db.prepare(albumQuery).all(searchTerm) as any[]
+      results.push(...albums.map((a: any) => ({ ...a, id: a.id.toString() })))
+    }
+
+    const artistQuery = `
+        SELECT ar.id, ar.name, (SELECT al.artworkPath FROM albums al WHERE al.artistId = ar.id AND al.artworkPath IS NOT NULL LIMIT 1) as artwork, 'artist' as searchType
+        FROM artists ar
+        WHERE ar.name LIKE ?
+        LIMIT 10
+    `
+    if (filters.artists) {
+      const artists = this.db.prepare(artistQuery).all(searchTerm) as any[]
+      results.push(...artists.map((a: any) => ({ ...a, id: a.id.toString() })))
+    }
+
+    return results
+  }
+
+  public addRecentlyPlayed(payload: { itemId: string; itemType: string }): void {
+    const { itemId, itemType } = payload
+
+    const transaction = this.db.transaction(() => {
+      const mostRecent = this.db
+        .prepare('SELECT id, itemId, itemType FROM recently_played ORDER BY id DESC LIMIT 1')
+        .get() as { id: number; itemId: string; itemType: string } | undefined
+
+      if (mostRecent && mostRecent.itemId === itemId && mostRecent.itemType === itemType) {
+        this.db
+          .prepare(
+            'UPDATE recently_played SET playCount = playCount + 1, playedAt = CURRENT_TIMESTAMP WHERE id = ?'
+          )
+          .run(mostRecent.id)
+      } else {
+        this.db
+          .prepare('INSERT INTO recently_played (itemId, itemType, playCount) VALUES (?, ?, 1)')
+          .run(itemId, itemType)
+      }
+    })
+
+    transaction()
+  }
+
+  public getRecentlyPlayed(): RecentlyPlayedItem[] {
+    const stmt = this.db.prepare(`
+      SELECT rp.id as recentId, rp.itemType, rp.playCount, rp.playedAt,
+             s.id, s.title as name, ar.name as artist, al.name as album, COALESCE(s.artworkPath, al.artworkPath) as artwork, 'song' as searchType, s.duration as rawDuration
+      FROM recently_played rp JOIN songs s ON s.id = rp.itemId JOIN artists ar ON s.artistId = ar.id JOIN albums al ON s.albumId = al.id
+      WHERE rp.itemType = 'song'
+      UNION ALL
+      SELECT rp.id as recentId, rp.itemType, rp.playCount, rp.playedAt,
+             al.id, al.name, ar.name as artist, al.year, al.artworkPath as artwork, 'album' as searchType, NULL as rawDuration
+      FROM recently_played rp JOIN albums al ON al.id = rp.itemId JOIN artists ar ON al.artistId = ar.id
+      WHERE rp.itemType = 'album'
+      UNION ALL
+      SELECT rp.id as recentId, rp.itemType, rp.playCount, rp.playedAt,
+             ar.id, ar.name, NULL as artist, NULL as year, (SELECT al.artworkPath FROM albums al WHERE al.artistId = ar.id AND al.artworkPath IS NOT NULL LIMIT 1) as artwork, 'artist' as searchType, NULL as rawDuration
+      FROM recently_played rp JOIN artists ar ON ar.id = rp.itemId
+      WHERE rp.itemType = 'artist'
+      UNION ALL
+      SELECT rp.id as recentId, rp.itemType, rp.playCount, rp.playedAt,
+             p.id, p.name, 'Playlist' as artist, p.description, p.artworkPath as artwork, 'playlist' as searchType, NULL as rawDuration
+      FROM recently_played rp JOIN playlists p ON p.id = rp.itemId
+      WHERE rp.itemType = 'playlist'
+      ORDER BY playedAt DESC
+      LIMIT 100
+    `)
+
+    return (stmt.all() as any[]).map((item) => {
+      const baseItem: Partial<RecentlyPlayedItem> = {
+        recentId: item.recentId,
+        id: item.id.toString(),
+        name: item.name,
+        artwork: item.artwork,
+        itemType: item.itemType,
+        playCount: item.playCount,
+        playedAt: item.playedAt
+      }
+
+      if (item.itemType === 'song') {
+        baseItem.artist = item.artist
+        baseItem.album = item.album
+        baseItem.duration = this.formatDuration(item.rawDuration)
+      }
+      return baseItem as RecentlyPlayedItem
+    })
+  }
+
+  public createPlaylist(payload: { name: string; description?: string; artwork?: string }): {
+    id: number
+  } {
+    const { name, description, artwork } = payload
+    const stmt = this.db.prepare(
+      'INSERT INTO playlists (name, description, artworkPath) VALUES (?, ?, ?)'
+    )
+    const result = stmt.run(name, description, artwork)
+    return { id: result.lastInsertRowid as number }
+  }
+
+  public getPlaylists(): Playlist[] {
+    const stmt = this.db.prepare(`
+      SELECT p.id, p.name, p.description, p.artworkPath as artwork, COUNT(ps.songId) as songCount
+      FROM playlists p
+      LEFT JOIN playlist_songs ps ON p.id = ps.playlistId
+      GROUP BY p.id
+      ORDER BY p.name
+    `)
+    return (stmt.all() as any[]).map((p: any) => ({
+      ...p,
+      id: p.id.toString()
+    }))
+  }
+
+  public getPlaylist(id: number): Playlist | null {
+    const stmt = this.db.prepare(`
+      SELECT p.id, p.name, p.description, p.artworkPath as artwork
+      FROM playlists p
+      WHERE p.id = ?
+    `)
+    const playlist = stmt.get(id) as any
+    return playlist ? { ...playlist, id: playlist.id.toString() } : null
+  }
+
+  public getSongsByPlaylistId(playlistId: number): Song[] {
+    const stmt = this.db.prepare(`
+      SELECT s.id, s.title as name, s.path, s.duration as rawDuration, al.name as album, ar.name as artist, COALESCE(s.artworkPath, al.artworkPath) as artwork
+      FROM songs s
+      JOIN playlist_songs ps ON s.id = ps.songId
+      JOIN albums al ON s.albumId = al.id
+      JOIN artists ar ON s.artistId = ar.id
+      WHERE ps.playlistId = ?
+      ORDER BY s.id
+    `)
+    return (stmt.all(playlistId) as any[]).map((s: any) => ({
+      ...s,
+      id: s.id.toString(),
+      duration: this.formatDuration(s.rawDuration)
+    }))
+  }
+
+  public addSongToPlaylist(payload: { playlistId: number; songId: number }): void {
+    const { playlistId, songId } = payload
+    const stmt = this.db.prepare(
+      'INSERT OR IGNORE INTO playlist_songs (playlistId, songId) VALUES (?, ?)'
+    )
+    stmt.run(playlistId, songId)
+  }
+
+  public toggleFavorite(payload: { itemId: string; itemType: string }): { isFavorite: boolean } {
+    const { itemId, itemType } = payload
+    const transaction = this.db.transaction(() => {
+      const existing = this.db
+        .prepare('SELECT itemId FROM favorites WHERE itemId = ? AND itemType = ?')
+        .get(itemId, itemType)
+
+      if (existing) {
+        this.db
+          .prepare('DELETE FROM favorites WHERE itemId = ? AND itemType = ?')
+          .run(itemId, itemType)
+        return { isFavorite: false }
+      } else {
+        this.db
+          .prepare('INSERT INTO favorites (itemId, itemType) VALUES (?, ?)')
+          .run(itemId, itemType)
+        return { isFavorite: true }
+      }
+    })
+    return transaction()
+  }
+
+  public getFavoriteIds(): {
+    songs: string[]
+    albums: string[]
+    artists: string[]
+  } {
+    const songs = (
+      this.db.prepare("SELECT itemId FROM favorites WHERE itemType = 'song'").all() as {
+        itemId: string
+      }[]
+    ).map((r) => r.itemId)
+    const albums = (
+      this.db.prepare("SELECT itemId FROM favorites WHERE itemType = 'album'").all() as {
+        itemId: string
+      }[]
+    ).map((r) => r.itemId)
+    const artists = (
+      this.db.prepare("SELECT itemId FROM favorites WHERE itemType = 'artist'").all() as {
+        itemId: string
+      }[]
+    ).map((r) => r.itemId)
+
+    return { songs, albums, artists }
+  }
+
   public close(): void {
     this.db.close()
   }
@@ -477,6 +766,36 @@ parentPort?.on('message', async (msg: { type: string; payload?: any; id: number 
         break
       case 'get-songs-by-artist-id':
         result = db.getSongsByArtistId(Number(msg.payload))
+        break
+      case 'search':
+        result = db.search(msg.payload)
+        break
+      case 'create-playlist':
+        result = db.createPlaylist(msg.payload)
+        break
+      case 'get-playlists':
+        result = db.getPlaylists()
+        break
+      case 'get-playlist':
+        result = db.getPlaylist(Number(msg.payload))
+        break
+      case 'get-songs-by-playlist-id':
+        result = db.getSongsByPlaylistId(Number(msg.payload))
+        break
+      case 'add-song-to-playlist':
+        result = db.addSongToPlaylist(msg.payload)
+        break
+      case 'add-recently-played':
+        result = db.addRecentlyPlayed(msg.payload)
+        break
+      case 'get-recently-played':
+        result = db.getRecentlyPlayed()
+        break
+      case 'toggle-favorite':
+        result = db.toggleFavorite(msg.payload)
+        break
+      case 'get-favorite-ids':
+        result = db.getFavoriteIds()
         break
       case 'close':
         result = db.close()

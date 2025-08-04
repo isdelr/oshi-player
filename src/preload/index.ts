@@ -41,7 +41,30 @@ const api = {
   getAlbumsByArtistId: (artistId: string): Promise<any[]> =>
     ipcRenderer.invoke('get-albums-by-artist-id', artistId),
   getSongsByArtistId: (artistId: string): Promise<any[]> =>
-    ipcRenderer.invoke('get-songs-by-artist-id', artistId)
+    ipcRenderer.invoke('get-songs-by-artist-id', artistId),
+  search: (payload: any): Promise<any[]> => ipcRenderer.invoke('search', payload),
+
+  // Playlists
+  createPlaylist: (payload) => ipcRenderer.invoke('create-playlist', payload),
+  getPlaylists: () => ipcRenderer.invoke('get-playlists'),
+  getPlaylist: (id: string) => ipcRenderer.invoke('get-playlist', id),
+  getSongsByPlaylistId: (playlistId: string) =>
+    ipcRenderer.invoke('get-songs-by-playlist-id', playlistId),
+  addSongToPlaylist: (payload) => ipcRenderer.invoke('add-song-to-playlist', payload),
+
+  // Recently Played
+  addRecentlyPlayed: (payload) => ipcRenderer.invoke('add-recently-played', payload),
+  getRecentlyPlayed: () => ipcRenderer.invoke('get-recently-played'),
+
+  // Favorites
+  toggleFavorite: (payload) => ipcRenderer.invoke('toggle-favorite', payload),
+  getFavoriteIds: () => ipcRenderer.invoke('get-favorite-ids'),
+  
+  // Settings
+  getLoginSettings: () => ipcRenderer.invoke('get-login-settings'),
+  setLoginSettings: (settings) => ipcRenderer.invoke('set-login-settings', settings),
+  relaunchApp: () => ipcRenderer.send('relaunch-app'),
+  resetApp: () => ipcRenderer.invoke('reset-app')
 }
 
 // ... contextBridge logic remains the same

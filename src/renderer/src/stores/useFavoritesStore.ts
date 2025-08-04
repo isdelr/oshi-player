@@ -1,65 +1,73 @@
 import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
+
+type ItemType = 'song' | 'album' | 'artist'
 
 interface FavoritesState {
   favoriteSongIds: Set<string>
+  favoriteAlbumIds: Set<string>
+  favoriteArtistIds: Set<string>
   actions: {
-    toggleFavorite: (songId: string) => void
-    isFavorite: (songId: string) => boolean
+    loadFavorites: () => Promise<void>
+    toggleFavorite: (itemId: string, itemType: ItemType) => Promise<void>
+    isFavorite: (itemId: string, itemType: ItemType) => boolean
   }
 }
 
-/**
- * Zustand store for managing favorite songs.
- * Uses persist middleware to save state to localStorage.
- */
-export const useFavoritesStore = create<FavoritesState>()(
-  persist(
-    (set, get) => ({
-      favoriteSongIds: new Set(),
-      actions: {
-        /**
-         * Toggles the favorite status of a song.
-         * @param songId - The ID of the song to toggle.
-         */
-        toggleFavorite: (songId) => {
-          set((state) => {
-            const newFavoriteIds = new Set(state.favoriteSongIds)
-            if (newFavoriteIds.has(songId)) {
-              newFavoriteIds.delete(songId)
-            } else {
-              newFavoriteIds.add(songId)
-            }
-            return { favoriteSongIds: newFavoriteIds }
-          })
-        },
-        /**
-         * Checks if a song is favorited.
-         * @param songId - The ID of the song to check.
-         * @returns True if the song is a favorite, false otherwise.
-         */
-        isFavorite: (songId) => {
-          return get().favoriteSongIds.has(songId)
-        }
-      }
-    }),
-    {
-      name: 'oshi-favorite-songs-storage', // Unique name for localStorage item
-      storage: createJSONStorage(() => localStorage, {
-        // Custom replacer and reviver to handle Set serialization
-        replacer: (key, value) => {
-          if (key === 'favoriteSongIds' && value instanceof Set) {
-            return Array.from(value)
-          }
-          return value
-        },
-        reviver: (key, value) => {
-          if (key === 'favoriteSongIds') {
-            return new Set(value as string[])
-          }
-          return value
-        }
+export const useFavoritesStore = create<FavoritesState>()((set, get) => ({
+  favoriteSongIds: new Set(),
+  favoriteAlbumIds: new Set(),
+  favoriteArtistIds: new Set(),
+  actions: {
+    loadFavorites: async () => {
+      const { songs, albums, artists } = await window.api.getFavoriteIds()
+      set({
+        favoriteSongIds: new Set(songs),
+        favoriteAlbumIds: new Set(albums),
+        favoriteArtistIds: new Set(artists)
       })
+    },
+    toggleFavorite: async (itemId, itemType) => {
+      // Optimistic update
+      const state = get()
+      const idSetKey = `favorite${itemType.charAt(0).toUpperCase() + itemType.slice(1)}Ids` as const
+      const currentIds = new Set(state[idSetKey])
+      const isCurrentlyFavorite = currentIds.has(itemId)
+
+      if (isCurrentlyFavorite) {
+        currentIds.delete(itemId)
+      } else {
+        currentIds.add(itemId)
+      }
+      set({ [idSetKey]: currentIds })
+
+      // Call API and handle potential failure
+      try {
+        await window.api.toggleFavorite({ itemId, itemType })
+        // The state is already updated, so we don't need to do anything on success.
+      } catch (error) {
+        console.error(`Failed to toggle favorite ${itemType}:`, error)
+        // Revert state on failure
+        const originalIds = new Set(state[idSetKey])
+        if (isCurrentlyFavorite) {
+          originalIds.add(itemId)
+        } else {
+          originalIds.delete(itemId)
+        }
+        set({ [idSetKey]: originalIds })
+      }
+    },
+    isFavorite: (itemId, itemType) => {
+      const state = get()
+      switch (itemType) {
+        case 'song':
+          return state.favoriteSongIds.has(itemId)
+        case 'album':
+          return state.favoriteAlbumIds.has(itemId)
+        case 'artist':
+          return state.favoriteArtistIds.has(itemId)
+        default:
+          return false
+      }
     }
-  )
-)
+  }
+}))

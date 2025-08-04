@@ -1,13 +1,15 @@
+// src/renderer/src/components/SongList.tsx
 import React, { JSX, useRef, useEffect } from 'react'
-import { Heart, Pause, Play, Clock, Music, Loader2 } from 'lucide-react'
+import { Heart, Pause, Play, Clock, Music, Loader2, Plus } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar'
 import { Button } from './ui/button'
 import { Song, useLibraryStore } from '@renderer/stores/useLibraryStore'
-import { usePlayerStore } from '@renderer/stores/usePlayerStore'
+import { PlayerState, usePlayerStore } from '@renderer/stores/usePlayerStore'
 import { useFavoritesStore } from '@renderer/stores/useFavoritesStore'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { cn } from '@renderer/lib/utils'
+import { AddToPlaylistPopover } from './AddToPlaylistPopover'
 import { Skeleton } from './ui/skeleton'
 
 interface SongListProps {
@@ -15,23 +17,25 @@ interface SongListProps {
   showAlbumColumn?: boolean
   containerClassName?: string
   isInitialLoading?: boolean
+  source: PlayerState['playlistSource']
 }
 
 export function SongList({
   songs,
   showAlbumColumn = true,
   containerClassName,
-  isInitialLoading = false
+  isInitialLoading = false,
+  source
 }: SongListProps): JSX.Element {
   const { currentSong, isPlaying, actions: playerActions } = usePlayerStore()
-  const { favoriteSongIds, actions: favoritesActions } = useFavoritesStore()
+  const { actions: favoritesActions, favoriteSongIds } = useFavoritesStore()
   const { hasMoreSongs, isLoadingMoreSongs, actions: libraryActions } = useLibraryStore()
 
   const parentRef = useRef<HTMLDivElement>(null)
 
   const handleFavoriteClick = (e: React.MouseEvent, songId: string): void => {
     e.stopPropagation()
-    favoritesActions.toggleFavorite(songId)
+    favoritesActions.toggleFavorite(songId, 'song')
   }
 
   const rowVirtualizer = useVirtualizer({
@@ -62,7 +66,8 @@ export function SongList({
               <TableHead>TITLE</TableHead>
               {showAlbumColumn && <TableHead className="hidden md:table-cell">ALBUM</TableHead>}
               <TableHead className="w-[60px]"></TableHead>
-              <TableHead className="w-[50px]"></TableHead>
+              <TableHead className="w-[50px]" />
+              <TableHead className="w-[50px]" />
             </TableRow>
           </TableHeader>
         </Table>
@@ -112,7 +117,8 @@ export function SongList({
             <TableHead className="w-[60px] text-xs font-normal text-muted-foreground/60 pb-2 text-right">
               <Clock className="size-4 ml-auto" />
             </TableHead>
-            <TableHead className="w-[50px] text-xs font-normal text-muted-foreground/60 pb-2 text-center">
+            <TableHead className="w-[50px] text-xs font-normal text-muted-foreground/60 pb-2" />
+            <TableHead className="w-[50px] text-xs font-normal text-muted-foreground/60 pb-2 pr-2 text-center">
               <Heart className="size-4 mx-auto" />
             </TableHead>
           </TableRow>
@@ -140,8 +146,8 @@ export function SongList({
                     transform: `translateY(${virtualItem.start}px)`
                   }}
                 >
-                  <TableCell colSpan={showAlbumColumn ? 5 : 4} className="h-full">
-                    <div className="flex justify-center items-center h-full">
+                  <TableCell colSpan={showAlbumColumn ? 6 : 5} className="h-full">
+                    <div className="flex items-center justify-center h-full">
                       <Loader2 className="size-6 animate-spin text-muted-foreground" />
                     </div>
                   </TableCell>
@@ -169,7 +175,8 @@ export function SongList({
                   if (isActive) {
                     playerActions.togglePlayPause()
                   } else {
-                    playerActions.playSong(songs, virtualItem.index)
+                    playerActions.playSong(songs, virtualItem.index, source)
+                    window.api.addRecentlyPlayed({ itemId: song.id, itemType: 'song' })
                   }
                 }}
               >
@@ -221,16 +228,32 @@ export function SongList({
                 <TableCell className="text-right text-sm text-muted-foreground py-2 font-normal tabular-nums w-[60px] shrink-0">
                   {song.duration}
                 </TableCell>
-                <TableCell className="py-2 text-center w-[50px] shrink-0">
+                <TableCell className="py-2 text-center w-[50px] shrink-0 ">
+                  <AddToPlaylistPopover songId={song.id}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 p-0 hover:bg-transparent transition-opacity opacity-0 group-hover:opacity-100"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                      }}
+                      aria-label="Add to playlist"
+                    >
+                      <Plus className="size-4 text-muted-foreground hover:text-foreground" />
+                    </Button>
+                  </AddToPlaylistPopover>
+                </TableCell>
+                <TableCell className="py-2 text-center w-[50px] shrink-0 pr-2">
                   <Button
                     variant="ghost"
                     size="icon"
                     className={`size-8 p-0 hover:bg-transparent transition-opacity ${
                       isFavorited
                         ? 'text-red-500 opacity-100'
-                        : 'text-muted-foreground opacity-0 group-hover:opacity-100'
+                        : 'text-muted-foreground opacity-0 group-hover:opacity-100 '
                     }`}
                     onClick={(e) => handleFavoriteClick(e, song.id)}
+                    aria-label="Favorite"
                   >
                     <Heart
                       className={`size-4 transition-colors ${

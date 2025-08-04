@@ -1,13 +1,14 @@
-// src/renderer/src/routes/artist/$artistId.tsx
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
 import { JSX } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar'
 import { Button } from '@renderer/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@renderer/components/ui/card'
-import { Play } from 'lucide-react'
+import { Heart, Play } from 'lucide-react'
 import { SongList } from '@renderer/components/SongList'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { usePlayerStore } from '@renderer/stores/usePlayerStore'
+import { useFavoritesStore } from '@renderer/stores/useFavoritesStore'
+import { cn } from '@renderer/lib/utils'
 
 export const Route = createFileRoute('/artist/$artistId')({
   component: ArtistView,
@@ -27,10 +28,13 @@ export const Route = createFileRoute('/artist/$artistId')({
 function ArtistView(): JSX.Element {
   const { artist, albums, songs } = Route.useLoaderData()
   const playerActions = usePlayerStore((s) => s.actions)
+  const { actions: favoritesActions, favoriteArtistIds } = useFavoritesStore()
+  const isArtistFavorited = favoriteArtistIds.has(artist.id)
 
   const handlePlayArtistTop = () => {
     if (songs.length > 0) {
-      playerActions.playSong(songs, 0)
+      playerActions.playSong(songs, 0, 'artist')
+      window.api.addRecentlyPlayed({ itemId: artist.id, itemType: 'artist' })
     }
   }
 
@@ -66,6 +70,19 @@ function ArtistView(): JSX.Element {
             <Play className="mr-2 size-5 fill-current" />
             Play All
           </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-12 rounded-full control-button"
+            onClick={() => favoritesActions.toggleFavorite(artist.id, 'artist')}
+          >
+            <Heart
+              className={cn(
+                'size-6 text-muted-foreground',
+                isArtistFavorited && 'fill-red-500 text-red-500'
+              )}
+            />
+          </Button>
         </div>
 
         {albums.length > 0 && (
@@ -96,7 +113,11 @@ function ArtistView(): JSX.Element {
                             e.stopPropagation()
                             window.api.getSongsByAlbumId(album.id).then((albumSongs) => {
                               if (albumSongs.length > 0) {
-                                playerActions.playSong(albumSongs, 0)
+                                playerActions.playSong(albumSongs, 0, 'album')
+                                window.api.addRecentlyPlayed({
+                                  itemId: album.id,
+                                  itemType: 'album'
+                                })
                               }
                             })
                           }}
@@ -119,7 +140,12 @@ function ArtistView(): JSX.Element {
         {songs.length > 0 && (
           <div className="mb-12">
             <h2 className="mb-4 text-2xl font-bold tracking-tight text-foreground">All Songs</h2>
-            <SongList songs={songs} showAlbumColumn={true} containerClassName="h-auto" />
+            <SongList
+              songs={songs}
+              showAlbumColumn={true}
+              containerClassName="h-auto"
+              source="artist"
+            />
           </div>
         )}
       </div>
