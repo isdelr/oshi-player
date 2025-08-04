@@ -14,19 +14,25 @@ export function cn(...inputs: ClassValue[]) {
  * @param {number} wait The number of milliseconds to delay.
  * @returns {{ (...args: any[]): void; cancel(): void }} The new debounced function.
  */
-export function debounce<T extends (...args: any[]) => any>(func: T, wait = 300) {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+export function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait = 300
+): {
+  (...args: Parameters<T>): void
+  cancel(): void
+} {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
 
-  const debounced = (...args: Parameters<T>) => {
-    clearTimeout(timeoutId);
+  const debounced = (...args: Parameters<T>): void => {
+    clearTimeout(timeoutId)
     timeoutId = setTimeout(() => {
-      func.apply(this, args);
-    }, wait);
-  };
+      func(...args)
+    }, wait)
+  }
 
   debounced.cancel = () => {
-    clearTimeout(timeoutId);
-  };
+    clearTimeout(timeoutId)
+  }
 
-  return debounced;
+  return debounced
 }

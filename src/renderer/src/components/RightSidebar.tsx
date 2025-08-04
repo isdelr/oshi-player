@@ -87,9 +87,9 @@ export function RightSidebar(): JSX.Element {
     }
   }
 
-  const handleSaveClick = () => {
+  const handleSaveClick = (): string | number | void => {
     if (playlist.length === 0) return toast.error('Queue is empty.')
-    setSaveDialogOpen(true)
+    return setSaveDialogOpen(true)
   }
 
   return (

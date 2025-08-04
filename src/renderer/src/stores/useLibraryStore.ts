@@ -16,7 +16,7 @@ export interface Album {
   id: string
   name: string
   artist: string
-  year: number
+  year?: number
   artwork: string
 }
 

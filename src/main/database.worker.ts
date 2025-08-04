@@ -47,10 +47,12 @@ export type SearchResult = (Song | Album | Artist) & { searchType: 'song' | 'alb
 export type RecentlyPlayedItem = (Song | Album | Artist | Playlist) & {
   itemType: 'song' | 'album' | 'artist' | 'playlist'
   playCount: number
-  playedAt: string // Will format this later
+  playedAt: string
   recentId: number
   name: string
   artist?: string
+  album?: string
+  duration?: string
 }
 
 export interface Playlist {

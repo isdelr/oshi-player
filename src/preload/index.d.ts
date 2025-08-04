@@ -55,6 +55,7 @@ export type RecentlyPlayedItem = (Song | Album | Artist | Playlist) & {
   recentId: number // The ID from the recently_played table
   name: string
   artist?: string
+  duration?: string
 }
 
 export interface CreatePlaylistPayload {

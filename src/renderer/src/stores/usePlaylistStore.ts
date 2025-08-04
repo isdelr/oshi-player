@@ -14,7 +14,10 @@ interface PlaylistState {
   actions: {
     fetchPlaylists: () => Promise<void>
     createPlaylist: (payload: CreatePlaylistPayload) => Promise<{ id: string } | undefined>
-    createPlaylistFromQueue: (name: string, songIds: string[]) => Promise<{ id: string } | undefined>
+    createPlaylistFromQueue: (
+      name: string,
+      songIds: string[]
+    ) => Promise<{ id: string } | undefined>
     addSongToPlaylist: (playlistId: string, songId: string) => Promise<void>
   }
 }
@@ -53,6 +56,7 @@ export const usePlaylistStore = create<PlaylistState>((set, get) => ({
       } catch (error) {
         console.error('Failed to create playlist from queue:', error)
         toast.error('Failed to create playlist.')
+        return
       }
     },
     addSongToPlaylist: async (playlistId, songId) => {

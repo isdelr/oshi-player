@@ -1,7 +1,7 @@
 // src/renderer/src/components/TitleBar.tsx
 import { Minimize2, X, Square } from 'lucide-react'
-import { JSX, ReactNode } from 'react'
-import { useTitleBar } from '@renderer/stores/useTitlebar'
+import { CSSProperties, JSX, ReactNode } from 'react'
+import { useTitleBar } from '@renderer/stores/useTitleBar'
 import '@renderer/assets/titleBar.css' // Import the CSS file
 
 interface TitleBarProps {
@@ -17,7 +17,7 @@ export function TitleBar({
 }: TitleBarProps): JSX.Element {
   const { isMaximized, useCustomFrame, platform, controls } = useTitleBar()
 
-  const WindowsControls = () => (
+  const WindowsControls = (): JSX.Element => (
     <div className="flex items-center h-full title-bar-controls">
       <button
         onClick={controls.minimize}
@@ -61,7 +61,7 @@ export function TitleBar({
     </div>
   )
 
-  const MacControls = () => (
+  const MacControls = (): JSX.Element => (
     <div className="flex items-center space-x-2 pl-2 py-1 mac-traffic-lights">
       <div className="flex space-x-2">
         <button
@@ -122,7 +122,7 @@ export function TitleBar({
     </div>
   )
 
-  const LinuxControls = () => (
+  const LinuxControls = (): JSX.Element => (
     <div className="flex items-center space-x-1 h-full title-bar-controls">
       <button
         onClick={controls.minimize}
@@ -166,8 +166,8 @@ export function TitleBar({
     </div>
   )
 
-  const renderControls = () => {
-    if (!useCustomFrame) return null
+  const renderControls = (): JSX.Element => {
+    if (!useCustomFrame) return <></>
 
     if (platform === 'mac') return <MacControls />
     if (platform === 'linux') return <LinuxControls />
@@ -175,31 +175,32 @@ export function TitleBar({
   }
 
   // Define padding based on platform. A fixed height is now used.
-  const getTitleBarPadding = () => {
+  const getTitleBarPadding = (): string => {
     if (!useCustomFrame) return 'px-0'
     if (platform === 'mac') return 'pl-20 pr-4'
     if (platform === 'windows') return 'pl-4 h-8' // Keep Windows bar thin but allow content to be taller
     return 'px-4' // Linux default
   }
 
-  const getPlatformClass = () => {
+  const getPlatformClass = (): string => {
     if (platform === 'mac') return 'title-bar-mac'
     if (platform === 'windows') return 'title-bar-windows'
     return 'title-bar-linux'
   }
 
-  const getDragRegionStyles = (): React.CSSProperties => {
+  const getDragRegionStyles = (): CSSProperties => {
     if (!useCustomFrame) return {}
-    return { WebkitAppRegion: 'drag' }
+    return { WebkitAppRegion: 'drag' } as CSSProperties
   }
 
-  const getNoDragStyles = (): React.CSSProperties => ({
-    WebkitAppRegion: 'no-drag'
-  })
+  const getNoDragStyles = (): CSSProperties =>
+    ({
+      WebkitAppRegion: 'no-drag'
+    }) as CSSProperties
 
   // Don't render anything if using native frame
   if (!useCustomFrame) {
-    return null
+    return <></>
   }
 
   return (

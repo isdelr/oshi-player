@@ -7,7 +7,6 @@ import {
   Repeat,
   Shuffle,
   Volume2,
-  Maximize2,
   Heart,
   Pause
 } from 'lucide-react'

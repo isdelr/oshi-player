@@ -9,7 +9,7 @@ import {
   TableRow
 } from '../../components/ui/table'
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar'
-import { Clock, Music, Mic2, Album, Play, Heart, Plus, Trash, Loader2 } from 'lucide-react'
+import { Clock, Music, Mic2, Album, Heart, Plus, Trash, Loader2 } from 'lucide-react'
 import { ScrollArea } from '@renderer/components/ui/scroll-area'
 import { Button } from '@renderer/components/ui/button'
 import { useRecentlyPlayedStore } from '@renderer/stores/useRecentlyPlayedStore'
@@ -106,7 +106,6 @@ function RecentlyPlayed(): JSX.Element {
                       <div className="flex items-center gap-3">
                         <Avatar
                           className="size-10 rounded-sm"
-                          rounded={item.itemType === 'artist' ? 'full' : 'sm'}
                         >
                           <AvatarImage src={item.artwork} className="object-cover" />
                           <AvatarFallback className="rounded-sm text-xs font-medium bg-muted">

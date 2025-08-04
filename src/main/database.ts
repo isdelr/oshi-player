@@ -58,6 +58,7 @@ export type RecentlyPlayedItem = (Song | Album | Artist | Playlist) & {
   playedAt: string
   recentId: number
   name: string
+  duration?: string
 }
 
 export interface GetSongsPayload {

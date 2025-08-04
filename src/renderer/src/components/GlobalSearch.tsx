@@ -1,7 +1,7 @@
 // src/renderer/src/components/GlobalSearch.tsx
 import { Search, Music, Mic2, Album as AlbumIcon, ListMusic, Loader2, X } from 'lucide-react'
 import { Input } from './ui/input'
-import { JSX, useEffect, useRef } from 'react'
+import { CSSProperties, JSX, useEffect, useRef } from 'react'
 import {
   useSearchStore,
   SearchResultItem,
@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
 import { Link } from '@tanstack/react-router'
 import { Button } from './ui/button'
 import { createPortal } from 'react-dom'
+import { Album, Song } from '@renderer/stores/useLibraryStore'
 
 function SearchResult({ item }: { item: SearchResultItem }): JSX.Element {
   const renderContent = (): JSX.Element => {
@@ -22,14 +23,14 @@ function SearchResult({ item }: { item: SearchResultItem }): JSX.Element {
         return (
           <>
             <Avatar className="size-8 rounded-sm">
-              <AvatarImage src={item.artwork} className="object-cover" />
+              <AvatarImage className="object-cover" />
               <AvatarFallback className="rounded-sm bg-muted">
                 <Music className="size-4 text-muted-foreground" />
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="font-normal text-foreground truncate">{item.name}</p>
-              <p className="text-xs text-muted-foreground truncate">{item.artist}</p>
+              <p className="text-xs text-muted-foreground truncate">{(item as Song).artist}</p>
             </div>
           </>
         )
@@ -41,14 +42,14 @@ function SearchResult({ item }: { item: SearchResultItem }): JSX.Element {
             className="flex w-full items-center gap-3"
           >
             <Avatar className="size-8 rounded-sm">
-              <AvatarImage src={item.artwork} className="object-cover" />
+              <AvatarImage className="object-cover" />
               <AvatarFallback className="rounded-sm bg-muted">
                 <AlbumIcon className="size-4 text-muted-foreground" />
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="font-normal text-foreground truncate">{item.name}</p>
-              <p className="text-xs text-muted-foreground truncate">{item.artist}</p>
+              <p className="text-xs text-muted-foreground truncate">{(item as Album).artist}</p>
             </div>
           </Link>
         )
@@ -60,7 +61,7 @@ function SearchResult({ item }: { item: SearchResultItem }): JSX.Element {
             className="flex w-full items-center gap-3"
           >
             <Avatar className="size-8 rounded-full">
-              <AvatarImage src={item.artwork} className="object-cover" />
+              <AvatarImage className="object-cover" />
               <AvatarFallback className="rounded-full bg-muted">
                 <Mic2 className="size-4 text-muted-foreground" />
               </AvatarFallback>
@@ -79,7 +80,7 @@ function SearchResult({ item }: { item: SearchResultItem }): JSX.Element {
             className="flex w-full items-center gap-3"
           >
             <Avatar className="size-8 rounded-sm">
-              <AvatarImage src={item.artwork} className="object-cover" />
+              <AvatarImage className="object-cover" />
               <AvatarFallback className="rounded-sm bg-muted">
                 <ListMusic className="size-4 text-muted-foreground" />
               </AvatarFallback>
@@ -153,6 +154,7 @@ export function GlobalSearch(): JSX.Element {
         document.removeEventListener('keydown', handleEscape)
       }
     }
+    return () => {}
   }, [actions, isSearchOpen])
 
   const handleFilterChange = (newValues: string[]): void => {
@@ -183,7 +185,11 @@ export function GlobalSearch(): JSX.Element {
   }
 
   return (
-    <div ref={containerRef} className="relative w-full" style={{ WebkitAppRegion: 'no-drag' }}>
+    <div
+      ref={containerRef}
+      className="relative w-full"
+      style={{ WebkitAppRegion: 'no-drag' } as CSSProperties}
+    >
       <div className="relative">
         <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground z-10" />
         <Input
@@ -210,20 +216,22 @@ export function GlobalSearch(): JSX.Element {
           <div
             ref={popoverRef} // <-- 3. ATTACH THE REF
             className="fixed left-1/2 z-50 w-[min(720px,90vw)] -translate-x-1/2"
-            style={{
-              top: '72px',
-              WebkitAppRegion: 'no-drag',
-              pointerEvents: 'auto'
-            }}
+            style={
+              {
+                top: '72px',
+                WebkitAppRegion: 'no-drag',
+                pointerEvents: 'auto'
+              } as CSSProperties
+            }
           >
             {/* Inner wrapper to ensure the whole interactive area is not draggable */}
             <div
               className="rounded-lg dark:border-2 dark:border-accent bg-popover/99 text-popover-foreground shadow-xl animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-200"
-              style={{ WebkitAppRegion: 'no-drag', pointerEvents: 'auto' }}
+              style={{ WebkitAppRegion: 'no-drag', pointerEvents: 'auto' } as CSSProperties}
             >
               <div
                 className="border-b p-3"
-                style={{ WebkitAppRegion: 'no-drag', pointerEvents: 'auto' }}
+                style={{ WebkitAppRegion: 'no-drag', pointerEvents: 'auto' } as CSSProperties}
               >
                 <ToggleGroup
                   type="multiple"
@@ -237,7 +245,7 @@ export function GlobalSearch(): JSX.Element {
                     aria-label="Toggle songs"
                     size="sm"
                     className="h-8 px-3 data-[state=on]:text-primary data-[state=off]:text-muted-foreground"
-                    style={{ WebkitAppRegion: 'no-drag' }}
+                    style={{ WebkitAppRegion: 'no-drag' } as CSSProperties}
                   >
                     <Music className="mr-1.5 size-3" />
                     Songs
@@ -247,7 +255,7 @@ export function GlobalSearch(): JSX.Element {
                     aria-label="Toggle artists"
                     size="sm"
                     className="h-8 px-3 data-[state=on]:text-primary data-[state=off]:text-muted-foreground"
-                    style={{ WebkitAppRegion: 'no-drag' }}
+                    style={{ WebkitAppRegion: 'no-drag' } as CSSProperties}
                   >
                     <Mic2 className="mr-1.5 size-3" />
                     Artists
@@ -257,7 +265,7 @@ export function GlobalSearch(): JSX.Element {
                     aria-label="Toggle albums"
                     size="sm"
                     className="h-8 px-3 data-[state=on]:text-primary data-[state=off]:text-muted-foreground"
-                    style={{ WebkitAppRegion: 'no-drag' }}
+                    style={{ WebkitAppRegion: 'no-drag' } as CSSProperties}
                   >
                     <AlbumIcon className="mr-1.5 size-3" />
                     Albums
@@ -267,7 +275,7 @@ export function GlobalSearch(): JSX.Element {
                     aria-label="Toggle playlists"
                     size="sm"
                     className="h-8 px-3 data-[state=on]:text-primary data-[state=off]:text-muted-foreground"
-                    style={{ WebkitAppRegion: 'no-drag' }}
+                    style={{ WebkitAppRegion: 'no-drag' } as CSSProperties}
                   >
                     <ListMusic className="mr-1.5 size-3" />
                     Playlists
@@ -275,10 +283,13 @@ export function GlobalSearch(): JSX.Element {
                 </ToggleGroup>
               </div>
 
-              <Command className="bg-transparent" style={{ WebkitAppRegion: 'no-drag' }}>
+              <Command
+                className="bg-transparent"
+                style={{ WebkitAppRegion: 'no-drag' } as CSSProperties}
+              >
                 <CommandList
                   className="max-h-[min(60vh,400px)] overflow-y-auto"
-                  style={{ WebkitAppRegion: 'no-drag' }}
+                  style={{ WebkitAppRegion: 'no-drag' } as CSSProperties}
                 >
                   {isLoading && (
                     <div className="flex items-center justify-center p-8">
@@ -288,7 +299,10 @@ export function GlobalSearch(): JSX.Element {
                   )}
 
                   {!isLoading && query && results.length === 0 && (
-                    <CommandEmpty className="py-8" style={{ WebkitAppRegion: 'no-drag' }}>
+                    <CommandEmpty
+                      className="py-8"
+                      style={{ WebkitAppRegion: 'no-drag' } as CSSProperties}
+                    >
                       <div className="text-center">
                         <Search className="mx-auto size-12 text-muted-foreground/30 mb-2" />
                         <p className="text-sm text-muted-foreground">
@@ -299,7 +313,10 @@ export function GlobalSearch(): JSX.Element {
                   )}
 
                   {!isLoading && results.length > 0 && (
-                    <CommandGroup className="p-2" style={{ WebkitAppRegion: 'no-drag' }}>
+                    <CommandGroup
+                      className="p-2"
+                      style={{ WebkitAppRegion: 'no-drag' } as CSSProperties}
+                    >
                       {results.map((item) => (
                         <SearchResult key={`${item.searchType}-${item.id}`} item={item} />
                       ))}
