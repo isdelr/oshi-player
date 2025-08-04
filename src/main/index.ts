@@ -15,7 +15,6 @@ import {
 } from 'electron'
 import { join, normalize, resolve } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import icon from '../../resources/icon.png?asset'
 import { DatabaseService } from './database'
 import { MusicPlayerService } from './musicPlayerService'
 import { pathToFileURL } from 'url'
@@ -43,7 +42,6 @@ async function createWindow(): Promise<void> {
     show: false,
     autoHideMenuBar: true,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#000000' : '#FFFFFF',
-    ...(process.platform === 'linux' ? { icon } : {}),
     frame: !isCustomFrame, // Use the setting here
     titleBarStyle: isCustomFrame ? 'hidden' : 'default', // Adjust titleBarStyle as well
     webPreferences: {

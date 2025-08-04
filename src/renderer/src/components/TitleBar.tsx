@@ -1,8 +1,8 @@
 // src/renderer/src/components/TitleBar.tsx
 import { Minimize2, X, Square } from 'lucide-react'
 import { CSSProperties, JSX, ReactNode } from 'react'
-import { useTitleBar } from '@renderer/stores/useTitleBar'
-import '@renderer/assets/titleBar.css' // Import the CSS file
+import '@renderer/assets/titleBar.css'
+import { useTitleBar } from '@renderer/stores/useTitlebar'
 
 interface TitleBarProps {
   children: ReactNode
@@ -177,8 +177,8 @@ export function TitleBar({
   // Define padding based on platform. A fixed height is now used.
   const getTitleBarPadding = (): string => {
     if (!useCustomFrame) return 'px-0'
-    if (platform === 'mac') return 'pl-20 pr-4'
-    if (platform === 'windows') return 'pl-4 h-8' // Keep Windows bar thin but allow content to be taller
+    if (platform === 'mac') return 'pl-20 pr-4' // Space for traffic lights
+    if (platform === 'windows') return 'pl-4' // Space for content
     return 'px-4' // Linux default
   }
 
@@ -193,20 +193,12 @@ export function TitleBar({
     return { WebkitAppRegion: 'drag' } as CSSProperties
   }
 
-  const getNoDragStyles = (): CSSProperties =>
-    ({
-      WebkitAppRegion: 'no-drag'
-    }) as CSSProperties
-
-  // Don't render anything if using native frame
-  if (!useCustomFrame) {
-    return <></>
-  }
+  const getNoDragStyles = (): CSSProperties => ({ WebkitAppRegion: 'no-drag' }) as CSSProperties
 
   return (
     <header
       className={`
-      title-bar
+      ${useCustomFrame ? 'title-bar' : ''}
       ${getPlatformClass()}
       flex items-center justify-between
       h-16
@@ -218,17 +210,17 @@ export function TitleBar({
     `}
       style={getDragRegionStyles()}
       role="banner"
-      aria-label="Window title bar"
+      aria-label={useCustomFrame ? 'Window title bar' : 'Application header'}
     >
       <div
         className={`
         flex items-center flex-1 min-w-0 h-full
-        ${platform === 'mac' ? 'justify-center' : 'justify-start'}
+        ${useCustomFrame && platform === 'mac' ? 'justify-center' : 'justify-start'}
         title-bar-content
       `}
-        style={platform === 'mac' ? getNoDragStyles() : {}}
+        style={useCustomFrame && platform === 'mac' ? getNoDragStyles() : {}}
       >
-        {platform === 'mac' && (
+        {useCustomFrame && platform === 'mac' && (
           <div
             className="absolute left-4 top-1/2 transform -translate-y-1/2"
             style={getNoDragStyles()}
@@ -240,7 +232,7 @@ export function TitleBar({
         <div
           className={`
           flex items-center truncate h-full
-          ${platform === 'mac' ? 'max-w-md' : 'flex-1'}
+          ${useCustomFrame && platform === 'mac' ? 'max-w-md' : 'flex-1'}
           ${platform === 'windows' ? 'text-sm' : ''}
         `}
         >
