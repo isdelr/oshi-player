@@ -2,7 +2,7 @@
 import { Minimize2, X, Square } from 'lucide-react'
 import { CSSProperties, JSX, ReactNode } from 'react'
 import '@renderer/assets/titleBar.css'
-import { useTitleBar } from '@renderer/stores/useTitlebar'
+import { useTitleBar } from '@renderer/stores/useTitleBar'
 
 interface TitleBarProps {
   children: ReactNode

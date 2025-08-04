@@ -11,7 +11,7 @@ import {
   Menu,
   net,
   nativeTheme,
-  Tray // Import Tray
+  // Tray // Import Tray
 } from 'electron'
 import { join, normalize, resolve } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -24,7 +24,7 @@ import { unlink } from 'fs/promises' // Import fs promises for file deletion
 Menu.setApplicationMenu(null)
 
 // Keep a global reference to the tray object
-let tray: Tray | null = null
+// let tray: Tray | null = null
 let isQuitting = false
 
 // This function needs to be async now to read settings before creating the window.
@@ -71,29 +71,7 @@ async function createWindow(): Promise<void> {
     if (minimizeToTrayEnabled && !isQuitting) {
       event.preventDefault()
       mainWindow.hide()
-      if (!tray) {
-        tray = new Tray(icon)
-        const contextMenu = Menu.buildFromTemplate([
-          {
-            label: 'Show Oshi',
-            click: function () {
-              mainWindow.show()
-            }
-          },
-          {
-            label: 'Quit',
-            click: function () {
-              app.isQuitting = true
-              app.quit()
-            }
-          }
-        ])
-        tray.setToolTip('Oshi Player')
-        tray.setContextMenu(contextMenu)
-        tray.on('double-click', () => {
-          mainWindow.show()
-        })
-      }
+
     }
   })
 
