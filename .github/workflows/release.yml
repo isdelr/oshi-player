@@ -27,6 +27,7 @@ jobs:
         run: npm install
 
       - name: Build application
+        shell: bash # This line ensures the script uses Bash on all operating systems
         run: |
           if [ "$RUNNER_OS" == "Linux" ]; then
             npm run build:linux
